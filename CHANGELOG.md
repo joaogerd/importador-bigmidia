@@ -2,6 +2,14 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.7
+- Remove os `alert()` usados para confirmar sucesso depois do preenchimento dos dados e da inclusão de documentos.
+- Adiciona notificações não bloqueantes dentro do painel da extensão.
+- Libera os controles imediatamente ao término de cada etapa, antes de mostrar a confirmação visual.
+- Evita depender de um clique posterior no site para exibir a mensagem e liberar a continuação do cadastro.
+- A inclusão individual de RG, atestado ou termo também passa a mostrar confirmação não bloqueante.
+- Erros de preenchimento/documentos são mostrados no painel sem travar a página.
+
 ## 1.4.6
 - Corrige a persistência do mapeamento manual entre páginas e cadastros.
 - Depois de **Salvar mapeamento** ou importar um JSON, o mapeamento passa a ser tratado como uma especificação completa e bloqueada.
