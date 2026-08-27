@@ -1,10 +1,10 @@
 # Importador BigMidia
 
-Extensão Chrome do Yoka para auxiliar o cadastro de atletas na Liga Paulista / BigMidia.
+Extensão Chrome do Yoka para auxiliar o cadastro e a correção de dados/documentos de atletas na Liga Paulista / BigMidia.
 
 ## Versão atual
 
-**v1.4.7**
+**v1.4.8**
 
 Página oficial de inclusão de atleta:
 
@@ -62,7 +62,7 @@ Para uma nova versão:
 2. atualize a versão em `manifest.json` e `VERSION`;
 3. teste a extensão no BigMidia;
 4. faça commit/push;
-5. crie e envie a tag, por exemplo `v1.4.8`.
+5. crie e envie a tag correspondente.
 
 O workflow `.github/workflows/release.yml` valida se a tag, `VERSION` e `manifest.json` possuem a mesma versão, gera o ZIP instalável e publica/atualiza a Release automaticamente.
 
@@ -70,17 +70,46 @@ O workflow `.github/workflows/release.yml` valida se a tag, `VERSION` e `manifes
 
 A extensão pode carregar os atletas diretamente do cadastro do Yoka no Google Sheets por meio da API do Google Apps Script. O CSV continua disponível como contingência.
 
-A partir da v1.4.4, a API devolve dinamicamente as colunas existentes na aba `Atletas`, permitindo usar campos como nome na camisa, número, tamanho e futuras colunas sem manter uma lista fixa na extensão.
+A partir da v1.4.4, a API devolve dinamicamente as colunas existentes na aba `Atletas`, permitindo usar campos como nome na camisa, número, tamanho, `Link da foto do atleta` e futuras colunas sem manter uma lista fixa na extensão.
 
 O backend dessa integração pertence ao projeto `cadastro-yoka`; este repositório contém a extensão Chrome.
+
+## Busca de atleta
+
+A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo foi criado principalmente para correções pontuais de documentação e dados depois que os cadastros iniciais já foram feitos.
+
+- aceita partes do nome e múltiplas palavras;
+- pesquisa em todos os atletas retornados pelo Google Sheets;
+- independe do filtro de categoria atual;
+- mostra categoria e status BigMidia quando disponíveis;
+- ao selecionar um resultado, aquele atleta passa a ser o atleta atual da extensão.
+
+## Foto do atleta
+
+A v1.4.8 também incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
+
+A foto possui ações próprias de **Abrir**, **Baixar** e **Incluir foto**. Ela é tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
+
+Ao incluir a foto, a extensão:
+
+1. baixa o arquivo do Google Drive usando a sessão atual do Chrome;
+2. exige JPG/JPEG ou PNG;
+3. procura o campo de foto/imagem/avatar da tela atual do BigMidia;
+4. exclui da busca o campo de upload utilizado pelo modal de documentos;
+5. coloca o arquivo no campo encontrado e dispara os eventos do navegador;
+6. pede que o operador confira a prévia antes de salvar.
+
+Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve ser conferida visualmente antes de seguir em lote.
 
 ## Recursos atuais
 
 - carregamento de atletas pelo Google Sheets ou CSV;
+- busca de atleta pelo nome para correções pontuais;
 - filtro de cadastro por categoria;
 - preenchimento assistido dos dados do atleta e responsável;
 - integração com consulta da RFB;
-- download e inclusão assistida de documentos do Google Drive;
+- download e inclusão assistida de RG, atestado e termo do Google Drive;
+- inclusão assistida da foto do atleta a partir do Drive;
 - `Autorização` cadastrada como **Termo Responsável (Menor de 18)**;
 - mapeamento manual persistente, inclusive campos definidos como **— não preencher —**;
 - correção do campo **Tipo Logradouro**;
