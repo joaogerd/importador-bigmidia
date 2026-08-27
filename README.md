@@ -4,7 +4,7 @@ Extensão Chrome do Yoka para auxiliar o cadastro de atletas na Liga Paulista / 
 
 ## Versão atual
 
-**v1.4.6**
+**v1.4.7**
 
 Página oficial de inclusão de atleta:
 
@@ -34,6 +34,14 @@ A v1.4.6 corrige a persistência do mapeamento manual. Depois de clicar em **Sal
 
 Ao atualizar da v1.4.5, um mapeamento que já possua `mappingSavedAt` é migrado automaticamente para o modo bloqueado. O botão **Automapear** continua disponível, mas apenas como uma ação explícita do operador; depois de usá-lo é necessário revisar e clicar em **Salvar mapeamento** novamente.
 
+## Notificações sem bloqueio
+
+A v1.4.7 remove os `alert()` usados nas confirmações de sucesso do preenchimento e da inclusão de documentos. Esses avisos podiam ficar pendentes até uma interação do usuário e bloquear a continuação do cadastro.
+
+Agora o painel mostra notificações não bloqueantes dentro da própria extensão. Os controles são liberados imediatamente quando a etapa termina, e o operador pode continuar conferindo ou cadastrando sem precisar clicar no site para liberar a mensagem.
+
+Erros de preenchimento ou documentos também são mostrados no painel, sem travar a página.
+
 ## Retorno pós-cadastro
 
 Depois que o operador clica no botão **Cadastrar** do BigMidia, o portal normalmente volta para a tela inicial. A extensão acompanha todo o domínio BigMidia para detectar esse retorno. Quando um cadastro pendente é confirmado, ela atualiza o status, avança para o próximo atleta e retorna automaticamente para `/atleta/create`. O próximo cadastro continua dependendo do clique manual em **Preencher atleta**.
@@ -55,6 +63,7 @@ Os pacotes de cada versão ficam em `versions/`:
 - v1.4.4
 - v1.4.5
 - v1.4.6
+- v1.4.7
 
 Consulte `CHANGELOG.md` para a evolução funcional.
 
