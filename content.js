@@ -12,7 +12,7 @@
     documentRunning: false, documentStatus: {},
     apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {},
     categoryFilter: '', availableCategories: [],
-    pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0
+    pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0, mappingLocked: false
   };
 
   const SPECIAL = {
@@ -633,7 +633,9 @@
       });
       state.savedMapping = Object.fromEntries(Object.entries(state.savedMapping || {}).filter(([,h]) => state.headers.includes(h)));
       state.mapping = { ...state.savedMapping };
-      autoMap();
+      // Um mapeamento salvo manualmente é uma especificação completa: campos ausentes
+      // significam explicitamente "não preencher" e não podem ser automapeados novamente.
+      if (!state.mappingLocked) autoMap();
       saveState();
       renderMapping();
       updateAthleteCard();
@@ -769,7 +771,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const birth = getMappedValue(row, SPECIAL.athleteBirthDisplay);
     if (!cpf || !birth) return alert('Mapeie as colunas de CPF e data de nascimento do atleta.');
 
-    state.running = true; state.abort = false; updateControls(); clearLog(); setProgress(0);
+    state.running = true; state.abort = false; updateControls(); clearNotice(); clearLog(); setProgress(0);
     try {
       log(`Iniciando: ${displayName(row)}`);
       await setField('atleta-id_pais', getMappedValue(row, 'atleta-id_pais') || 'Brazil', 'Nacionalidade');
@@ -833,12 +835,22 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         catch (syncError) { log(`⚠ Planilha: ${syncError.message}`); }
       }
       log('✅ Preenchimento concluído. Confira os dados e clique manualmente em Cadastrar.');
-      alert('Preenchimento concluído. Confira os dados e use “Incluir todos os documentos” no painel. O botão Cadastrar permanece manual.');
+      state.running = false;
+      updateControls();
+      await saveState();
+      showNotice('✓ Dados preenchidos. Você já pode conferir os documentos e continuar o cadastro.', 'success', 9000);
     } catch (error) {
       log(`❌ ${error.message}`);
-      alert(error.message);
+      state.running = false;
+      updateControls();
+      await saveState();
+      showNotice(`Erro no preenchimento: ${error.message}`, 'error', 0);
     } finally {
-      state.running = false; updateControls(); saveState();
+      if (state.running) {
+        state.running = false;
+        updateControls();
+        saveState();
+      }
     }
   }
 
@@ -1105,16 +1117,26 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     if (state.documentRunning || state.running) return;
     state.documentRunning = true;
     updateControls();
+    clearNotice();
     try {
       await includeDocumentInternal(key);
-    } catch (error) {
-      setDocumentStatus(key, 'Erro', 'error');
-      log(`❌ ${DOCUMENT_CONFIG[key].label}: ${error.message}`);
-      alert(error.message);
-    } finally {
       state.documentRunning = false;
       updateControls();
       updateDocumentCard();
+      showNotice(`✓ ${DOCUMENT_CONFIG[key].label} incluído. Você pode continuar o cadastro imediatamente.`, 'success', 7000);
+    } catch (error) {
+      setDocumentStatus(key, 'Erro', 'error');
+      log(`❌ ${DOCUMENT_CONFIG[key].label}: ${error.message}`);
+      state.documentRunning = false;
+      updateControls();
+      updateDocumentCard();
+      showNotice(`${DOCUMENT_CONFIG[key].label}: ${error.message}`, 'error', 0);
+    } finally {
+      if (state.documentRunning) {
+        state.documentRunning = false;
+        updateControls();
+        updateDocumentCard();
+      }
     }
   }
 
@@ -1125,6 +1147,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     if (!keys.length) return alert('Este atleta não possui links válidos para RG, atestado ou autorização.');
     state.documentRunning = true;
     updateControls();
+    clearNotice();
     const errors = [];
     try {
       for (const key of keys) {
@@ -1139,12 +1162,20 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
           if (visible) break;
         }
       }
-      if (!errors.length) alert('Todos os documentos disponíveis foram incluídos. Confira a tabela de documentos antes de cadastrar o atleta.');
-      else alert(`A inclusão terminou com problema:\n\n${errors.join('\n')}`);
-    } finally {
       state.documentRunning = false;
       updateControls();
       updateDocumentCard();
+      if (!errors.length) {
+        showNotice('✓ Todos os documentos disponíveis foram incluídos. Você já pode conferir e clicar em Cadastrar.', 'success', 9000);
+      } else {
+        showNotice(`A inclusão terminou com problema: ${errors.join(' | ')}`, 'error', 0);
+      }
+    } finally {
+      if (state.documentRunning) {
+        state.documentRunning = false;
+        updateControls();
+        updateDocumentCard();
+      }
     }
   }
 
@@ -1259,7 +1290,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         apiUrl: state.apiUrl, apiToken: state.apiToken, dataSource: state.dataSource,
         serverStatuses: state.serverStatuses, pendingRegistration: state.pendingRegistration,
         categoryFilter: state.categoryFilter, availableCategories: state.availableCategories,
-        mappingSavedAt: state.mappingSavedAt
+        mappingSavedAt: state.mappingSavedAt, mappingLocked: Boolean(state.mappingLocked)
       }}, () => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
         else resolve();
@@ -1274,6 +1305,12 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         Object.assign(state, saved);
         state.savedMapping = { ...(saved.mapping || {}) };
         state.mapping = { ...(saved.mapping || {}) };
+        // Migração da v1.4.5: se o usuário já havia usado "Salvar mapeamento",
+        // aquele objeto deve ser tratado como configuração completa, inclusive pelas
+        // associações ausentes que significam "não preencher".
+        state.mappingLocked = saved.mappingLocked !== undefined
+          ? Boolean(saved.mappingLocked)
+          : Boolean(saved.mappingSavedAt);
       }
       resolve();
     }));
@@ -1292,7 +1329,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       return;
     }
     if (state.mappingSavedAt) {
-      el.textContent = `Mapeamento salvo às ${new Date(state.mappingSavedAt).toLocaleTimeString('pt-BR')}.`;
+      el.textContent = `Mapeamento fixo salvo às ${new Date(state.mappingSavedAt).toLocaleTimeString('pt-BR')}. Campos em ‘não preencher’ também serão preservados.`;
     } else {
       el.textContent = 'Mapeamento ainda não foi salvo manualmente.';
     }
@@ -1301,10 +1338,11 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
   async function saveMappingNow() {
     state.savedMapping = { ...state.mapping };
     state.mappingSavedAt = Date.now();
+    state.mappingLocked = true;
     try {
       await saveState();
       updateMappingSaveStatus();
-      log('✓ Mapeamento salvo neste Chrome.');
+      log('✓ Mapeamento fixo salvo neste Chrome, incluindo os campos marcados como não preencher.');
     } catch (error) {
       updateMappingSaveStatus(`Erro ao salvar: ${error.message}`);
       alert(`Não consegui salvar o mapeamento: ${error.message}`);
@@ -1320,6 +1358,32 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
   }
   function clearLog() { const el = $('#ykl-log'); if (el) el.textContent = ''; }
   function setProgress(value) { const el = $('#ykl-progress-bar'); if (el) el.style.width = `${value}%`; }
+
+  let noticeTimer = null;
+  function showNotice(message, kind = 'info', timeout = 7000) {
+    const el = $('#ykl-notice');
+    if (!el) { log(message); return; }
+    if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
+    el.textContent = message;
+    el.className = `ykl-notice ykl-notice-${kind} ykl-notice-visible`;
+    el.removeAttribute('hidden');
+    if (timeout > 0) {
+      noticeTimer = setTimeout(() => {
+        el.classList.remove('ykl-notice-visible');
+        el.setAttribute('hidden', '');
+        noticeTimer = null;
+      }, timeout);
+    }
+  }
+
+  function clearNotice() {
+    const el = $('#ykl-notice');
+    if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
+    if (!el) return;
+    el.classList.remove('ykl-notice-visible');
+    el.setAttribute('hidden', '');
+    el.textContent = '';
+  }
 
   function updateAthleteCard() {
     const row = currentRow();
@@ -1441,6 +1505,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
             <button id="ykl-prev" class="ykl-btn ykl-grow">← Anterior</button>
             <button id="ykl-next" class="ykl-btn ykl-grow">Próximo →</button>
           </div>
+          <div id="ykl-notice" class="ykl-notice" role="status" aria-live="polite" aria-atomic="true" hidden></div>
           <div class="ykl-progress"><div id="ykl-progress-bar"></div></div>
           <div id="ykl-log" class="ykl-log"></div>
           <div class="ykl-note" style="margin-top:9px">A extensão consulta a RFB e o CEP pelos botões do próprio site. O botão <strong>Cadastrar</strong> permanece manual.</div>
@@ -1514,7 +1579,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       saveState(); updateAthleteCard(); updateControls(); setProgress(0); clearLog();
     });
     $('#ykl-delay').addEventListener('change', e => { state.delay = Math.max(MIN_DELAY, Math.min(3000, Number(e.target.value) || DEFAULT_DELAY)); e.target.value = state.delay; saveState(); });
-    $('#ykl-auto-map').addEventListener('click', () => { autoMap(); renderMapping(); updateAthleteCard(); updateMappingSaveStatus(); });
+    $('#ykl-auto-map').addEventListener('click', () => { state.mappingLocked = false; state.mapping = {}; autoMap(); renderMapping(); updateAthleteCard(); updateMappingSaveStatus('Automapeamento aplicado. Revise e clique em Salvar mapeamento para torná-lo permanente.'); });
     $('#ykl-save-map').addEventListener('click', saveMappingNow);
     $('#ykl-map-search').addEventListener('input', e => { state.filter = e.target.value; renderMapping(); });
     $('#ykl-logo-file').addEventListener('change', handleLogoFile);
@@ -1552,7 +1617,8 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {}; state.dataSource = 'csv'; state.serverStatuses = {}; state.categoryFilter = ''; state.availableCategories = [];
     state.savedMapping = Object.fromEntries(Object.entries(state.savedMapping || {}).filter(([,h]) => state.headers.includes(h)));
     state.mapping = { ...state.savedMapping };
-    autoMap(); saveState(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateMappingSaveStatus(); switchTab('mapeamento');
+    if (!state.mappingLocked) autoMap();
+    saveState(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateMappingSaveStatus(); switchTab('mapeamento');
     const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
     alert(modeloYoka
       ? `${state.rows.length} atletas importados. O modelo de colunas do Yoka foi reconhecido e mapeado automaticamente. Confira o mapeamento antes do primeiro teste.`
@@ -1561,12 +1627,12 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, categoryFilter: '', availableCategories: [], pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0 });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, categoryFilter: '', availableCategories: [], pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0, mappingLocked: false });
     chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
   function exportMapping() {
-    const blob = new Blob([JSON.stringify({ version: 1, mapping: state.mapping, delay: state.delay }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ version: 2, mapping: state.mapping, mappingLocked: true, delay: state.delay }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'mapeamento-liga-yoka.json'; a.click(); URL.revokeObjectURL(url);
   }
 
@@ -1574,7 +1640,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const file = event.target.files?.[0]; if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      state.mapping = data.mapping || {}; state.savedMapping = { ...state.mapping }; state.mappingSavedAt = Date.now(); state.delay = Math.max(MIN_DELAY, Number(data.delay) || state.delay);
+      state.mapping = data.mapping || {}; state.savedMapping = { ...state.mapping }; state.mappingSavedAt = Date.now(); state.mappingLocked = true; state.delay = Math.max(MIN_DELAY, Number(data.delay) || state.delay);
       await saveState(); renderMapping(); updateAthleteCard(); updateMappingSaveStatus(); alert('Mapeamento importado e salvo.');
     } catch { alert('Arquivo de mapeamento inválido.'); }
     event.target.value = '';
@@ -1596,7 +1662,9 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       const enriched = addDerivedResponsibleColumns(state.headers, state.rows);
       state.headers = enriched.headers;
       state.rows = enriched.rows;
-      autoMap();
+      state.savedMapping = Object.fromEntries(Object.entries(state.savedMapping || {}).filter(([,h]) => state.headers.includes(h)));
+      state.mapping = { ...state.savedMapping };
+      if (!state.mappingLocked) autoMap();
     }
     buildUi(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo(); updateMappingSaveStatus();
     const saveButton = document.getElementById('save-Atleta');

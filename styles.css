@@ -107,3 +107,12 @@
 .ykl-dot { width:8px; height:8px; border-radius:50%; background:#8a949d; flex:none; }
 .ykl-dot.ykl-ok { background:#147a42; }
 .ykl-dot.ykl-error { background:#b42318; }
+
+.ykl-notice {
+  margin: 8px 0; padding: 9px 10px; border-radius: 7px; border: 1px solid transparent;
+  font-size: 11px; font-weight: 700; line-height: 1.4;
+}
+.ykl-notice[hidden] { display: none !important; }
+.ykl-notice-success { background: #e7f7ee; border-color: #a9dec0; color: #0b6532; }
+.ykl-notice-error { background: #fff0ee; border-color: #efb5ae; color: #8f1d14; }
+.ykl-notice-info { background: #edf5ff; border-color: #b8d5f3; color: #174a7e; }

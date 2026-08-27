@@ -1,4 +1,4 @@
-# Importador Yoka — Liga Paulista v1.4.5
+# Importador Yoka — Liga Paulista v1.4.7
 
 Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atletas no BigMidia / Liga Paulista.
 
@@ -72,27 +72,31 @@ Endereço oficial usado para inclusão de atleta:
 No envio dos documentos, o arquivo de autorização do responsável deve ser cadastrado no BigMidia com o tipo exato **Termo Responsável (Menor de 18)**.
 
 
-## Novidades da v1.4.5
+## Histórico recente
 
-- filtro dinâmico **Cadastrar por categoria** no painel principal;
-- categorias são descobertas automaticamente a partir de `Equipe atual` / `Categoria calculada` da planilha;
-- ao selecionar uma categoria, a extensão recarrega o Google Sheets e mostra somente os atletas daquela categoria;
-- a categoria do atleta atual aparece logo abaixo do nome;
-- o filtro não exige alteração futura quando novas categorias forem criadas na planilha.
+### v1.4.7
 
+- Corrige definitivamente a persistência do **mapeamento manual**.
+- Depois de **Salvar mapeamento** ou importar um JSON, a configuração fica bloqueada e é restaurada sem executar automapeamento.
+- Campos deixados em **— não preencher —** são tratados como decisão explícita e permanecem vazios nos próximos atletas e páginas.
+- Migra automaticamente um mapeamento já salvo na v1.4.5 usando `mappingSavedAt`.
+- O botão **Automapear** passa a ser uma ação explícita; depois de usá-lo é necessário revisar e salvar novamente.
 
-## Correções da v1.4.5
+### v1.4.5
 
-- Corrige o campo **Tipo Logradouro**: ele não recebe mais o logradouro completo; quando necessário, usa somente o tipo (Rua, Avenida, Travessa etc.).
-- Remove automaticamente mapeamentos antigos incorretos de Tipo Logradouro salvos no Chrome.
-- Mostra Nome na camisa, Número e Tamanho na ficha do atleta.
-- Compatível com a API atualizada que devolve todas as colunas da aba `Atletas`.
+- Adiciona o botão **Salvar mapeamento** e o retorno automático para `/atleta/create` depois do cadastro.
+- O popup possui o botão **Abrir cadastro de atleta**.
 
+### v1.4.4
 
-## Novidades da v1.4.5
+- Corrige **Tipo Logradouro** para não receber o logradouro completo.
+- Exibe nome, número e tamanho da camisa na ficha do atleta.
+- Compatível com a API que devolve todas as colunas da aba `Atletas`.
 
-- Botão **Salvar mapeamento** com confirmação visual e persistência explícita no Chrome.
-- O mapeamento salvo passa a ter prioridade sobre o automapeamento sugerido.
-- Após clicar em **Cadastrar** e o BigMidia retornar à tela inicial, a extensão confirma o status, avança para o próximo atleta e volta automaticamente para `/atleta/create`.
-- O content script passa a acompanhar todo o domínio BigMidia apenas para completar esse retorno pós-cadastro; o painel completo continua sendo exibido somente no formulário de criação.
-- O popup da extensão possui o botão **Abrir cadastro de atleta**.
+### v1.4.3
+
+- Adiciona filtro dinâmico **Cadastrar por categoria**.
+
+## Notificações sem bloqueio (v1.4.7)
+
+As confirmações de conclusão do preenchimento e da inclusão de documentos não usam mais `alert()`. O painel mostra uma mensagem visual não bloqueante e libera os controles imediatamente, sem exigir clique no site para continuar.
