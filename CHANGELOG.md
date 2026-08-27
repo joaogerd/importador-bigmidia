@@ -2,6 +2,17 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.8
+- Adiciona **busca de atleta pelo nome** no painel principal para o fluxo de correção pontual de cadastros/documentos.
+- A busca consulta todos os atletas do Google Sheets, independentemente do filtro de categoria atualmente selecionado.
+- Permite pesquisar por partes do nome; ao selecionar um resultado, aquele atleta passa a ser o atleta atual da extensão.
+- Exibe categoria e status BigMidia nos resultados da busca quando disponíveis.
+- Adiciona a **Foto do atleta** à área de arquivos, usando a coluna `Link da foto do atleta` do Google Sheets.
+- Permite abrir, baixar e incluir a foto diretamente a partir do Drive.
+- A foto é tratada separadamente de RG/atestado/termo e nunca é enviada como tipo de documento.
+- Detecta o campo de foto do BigMidia por identificadores/labels relacionados a foto, imagem ou avatar, excluindo explicitamente o campo do modal de documentos.
+- Aceita foto em JPG/JPEG ou PNG e mantém a conferência visual pelo operador antes de salvar.
+
 ## 1.4.7
 - Remove os `alert()` usados para confirmar sucesso depois do preenchimento dos dados e da inclusão de documentos.
 - Adiciona notificações não bloqueantes dentro do painel da extensão.
@@ -78,6 +89,3 @@ Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 ## 1.0.0
 - Primeira versão preservada.
 - Importação CSV.
-- Preenchimento assistido do cadastro de atleta.
-- Consulta à RFB.
-- Conferência humana antes do cadastro final.
