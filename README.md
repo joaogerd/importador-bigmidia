@@ -1,4 +1,4 @@
-# Importador Yoka — Liga Paulista v1.4.1
+# Importador Yoka — Liga Paulista v1.4.2
 
 Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atletas no BigMidia / Liga Paulista.
 
@@ -62,3 +62,11 @@ O botão final **Cadastrar** continua manual. A automação preenche e envia doc
 - Detecta PDF/JPG/PNG pela assinatura real dos bytes baixados do Drive.
 - Normaliza MIME e extensão antes de entregar o arquivo ao BigMidia.
 - Evita o erro “Tipo de arquivo inválido” quando o Drive responde como application/octet-stream.
+
+## BigMidia — cadastro de atleta
+
+Endereço oficial usado para inclusão de atleta:
+
+`https://ligapaulistafutsal.bigmidia.com/atleta/create`
+
+No envio dos documentos, o arquivo de autorização do responsável deve ser cadastrado no BigMidia com o tipo exato **Termo Responsável (Menor de 18)**.

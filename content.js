@@ -125,13 +125,26 @@
       typeLabels: ['Atestado médico', 'Atestado de saúde', 'Atestado']
     },
     autorizacao: {
-      label: 'Autorização',
-      fallbackName: 'Autorização',
-      typeLabels: ['Autorização do responsável', 'Termo de autorização', 'Autorização', 'Autorizacao']
+      label: 'Termo Responsável (Menor de 18)',
+      fallbackName: 'Termo Responsável (Menor de 18)',
+      typeLabels: [
+        'Termo Responsável (Menor de 18)',
+        'Termo Responsavel (Menor de 18)'
+      ]
     }
   };
 
+  const BIGMIDIA_ATHLETE_CREATE_URL = 'https://ligapaulistafutsal.bigmidia.com/atleta/create';
   const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+  function isBigMidiaAthleteCreatePage() {
+    try {
+      const expected = new URL(BIGMIDIA_ATHLETE_CREATE_URL);
+      return location.origin === expected.origin && location.pathname === expected.pathname;
+    } catch {
+      return false;
+    }
+  }
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -645,6 +658,10 @@
 
   async function fillAthlete() {
     if (state.running) return;
+    if (!isBigMidiaAthleteCreatePage()) {
+      return alert(`Abra a página oficial de inclusão de atleta antes de preencher:
+${BIGMIDIA_ATHLETE_CREATE_URL}`);
+    }
     const row = currentRow();
     if (!row) return alert('Carregue os atletas do Google Sheets ou importe um CSV e selecione um atleta.');
     const cpf = getMappedValue(row, SPECIAL.athleteCpf);
