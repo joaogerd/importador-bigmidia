@@ -1,0 +1,86 @@
+#ykl-root, #ykl-root * { box-sizing: border-box; }
+#ykl-root {
+  position: fixed;
+  z-index: 2147483000;
+  top: 78px;
+  right: 12px;
+  width: 390px;
+  max-height: calc(100vh - 92px);
+  font-family: Arial, Helvetica, sans-serif;
+  color: #17212b;
+  background: #fff;
+  border: 1px solid #cfd6dd;
+  border-radius: 12px;
+  box-shadow: 0 10px 36px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+#ykl-root.ykl-collapsed { width: 58px; }
+#ykl-root.ykl-collapsed .ykl-body,
+#ykl-root.ykl-collapsed .ykl-title-text { display: none; }
+.ykl-header {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  color: #fff;
+  background: #174a7e;
+}
+.ykl-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.ykl-logo {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; flex: 0 0 auto;
+  font-weight: 800; background: #fff; color: #174a7e;
+}
+.ykl-title-text strong { display: block; font-size: 14px; }
+.ykl-title-text span { display: block; font-size: 11px; opacity: .85; }
+.ykl-icon-btn {
+  border: 0; background: rgba(255,255,255,.18); color: #fff;
+  border-radius: 7px; width: 32px; height: 32px; cursor: pointer;
+  font-size: 18px;
+}
+.ykl-body { padding: 12px; overflow-y: auto; max-height: calc(100vh - 145px); }
+.ykl-card { border: 1px solid #dce2e7; border-radius: 9px; padding: 10px; margin-bottom: 10px; background: #fff; }
+.ykl-card h3 { font-size: 13px; margin: 0 0 8px; color: #174a7e; }
+.ykl-row { display: flex; gap: 8px; align-items: center; margin: 7px 0; }
+.ykl-row > * { min-width: 0; }
+.ykl-grow { flex: 1 1 auto; }
+.ykl-label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #44515d; }
+#ykl-root input[type="file"], #ykl-root input[type="number"], #ykl-root input[type="search"], #ykl-root select {
+  width: 100%; border: 1px solid #bfc8d1; border-radius: 6px; padding: 7px 8px; background: #fff; font-size: 12px;
+}
+.ykl-btn {
+  border: 0; border-radius: 7px; padding: 9px 11px; cursor: pointer;
+  font-size: 12px; font-weight: 700; background: #e9eef3; color: #1f2d3a;
+}
+.ykl-btn:hover { filter: brightness(.97); }
+.ykl-btn:disabled { opacity: .48; cursor: not-allowed; }
+.ykl-primary { background: #147a42; color: #fff; }
+.ykl-blue { background: #174a7e; color: #fff; }
+.ykl-danger { background: #b42318; color: #fff; }
+.ykl-warn { background: #f5a524; color: #231a00; }
+.ykl-full { width: 100%; }
+.ykl-athlete { font-size: 14px; font-weight: 800; margin: 2px 0; }
+.ykl-muted { font-size: 11px; color: #64717d; line-height: 1.35; }
+.ykl-progress { height: 8px; border-radius: 999px; overflow: hidden; background: #e6ebef; margin: 7px 0; }
+.ykl-progress > div { height: 100%; width: 0; background: #147a42; transition: width .2s ease; }
+.ykl-log { height: 112px; overflow: auto; background: #111820; color: #d7e0e7; border-radius: 7px; padding: 8px; font: 11px/1.35 monospace; white-space: pre-wrap; }
+.ykl-badge { display: inline-block; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #e9eef3; }
+.ykl-success-badge { background: #d9f2e3; color: #0b6532; }
+.ykl-tabs { display: flex; gap: 5px; margin-bottom: 9px; }
+.ykl-tab { flex: 1; padding: 7px; border: 1px solid #cfd6dd; border-radius: 6px; background: #f8fafb; cursor: pointer; font-size: 11px; font-weight: 700; }
+.ykl-tab.active { background: #174a7e; color: #fff; border-color: #174a7e; }
+.ykl-section { display: none; }
+.ykl-section.active { display: block; }
+.ykl-map-list { max-height: 315px; overflow: auto; border: 1px solid #dce2e7; border-radius: 7px; }
+.ykl-map-row { padding: 7px; border-bottom: 1px solid #edf0f2; }
+.ykl-map-row:last-child { border-bottom: 0; }
+.ykl-map-field { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.ykl-map-id { font: 9px monospace; color: #7b8792; }
+.ykl-hidden { display: none !important; }
+.ykl-note { border-left: 3px solid #f5a524; padding: 7px 8px; background: #fff8e6; font-size: 11px; line-height: 1.4; }
+@media (max-width: 650px) {
+  #ykl-root { left: 8px; right: 8px; width: auto; top: 66px; }
+  #ykl-root.ykl-collapsed { left: auto; width: 58px; }
+}
