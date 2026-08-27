@@ -2,6 +2,13 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.3
+- Adiciona o filtro **Cadastrar por categoria** no painel principal.
+- Descobre automaticamente as categorias existentes a partir de `Equipe atual` / `Categoria calculada` do Google Sheets.
+- Ao selecionar uma categoria, recarrega os atletas e exibe somente os integrantes daquele grupo.
+- Restringe a navegação Anterior/Próximo ao conjunto filtrado.
+- Exibe a categoria do atleta atual logo abaixo do nome.
+
 ## 1.4.2
 - Define `https://ligapaulistafutsal.bigmidia.com/atleta/create` como página oficial de inclusão de atleta.
 - O preenchimento é bloqueado fora da página de criação.
