@@ -1,0 +1,15 @@
+# Dados reais e exportações locais
+*.csv
+!exemplo-atletas.csv
+*.xlsx
+*.xls
+
+# Documentos e downloads
+ downloads/
+documents/
+data/
+
+# Ambiente local
+.DS_Store
+Thumbs.db
+*.log
