@@ -2,6 +2,14 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.4
+- Corrige o mapeamento do campo **Tipo Logradouro** para impedir que ele receba o conteúdo completo da coluna `Logradouro`.
+- Remove automaticamente mapeamentos antigos incorretos de Tipo Logradouro salvos no Chrome.
+- Quando necessário, deriva somente o tipo do endereço, como `Rua`, `Avenida`, `Travessa`, `Alameda`, `Rodovia` ou `Estrada`.
+- A ficha do atleta passa a mostrar `Nome ou apelido na camisa`, `Número da camisa` e `Tamanho da camisa`.
+- A API do Apps Script passa a devolver dinamicamente todas as colunas existentes na aba `Atletas`, preservando a ordem da planilha.
+- Novas colunas criadas no Google Sheets passam a ficar disponíveis na extensão sem nova alteração na lista de campos da API.
+
 ## 1.4.3
 - Adiciona o filtro **Cadastrar por categoria** no painel principal.
 - Descobre automaticamente as categorias existentes a partir de `Equipe atual` / `Categoria calculada` do Google Sheets.
