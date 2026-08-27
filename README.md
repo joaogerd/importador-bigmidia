@@ -1,27 +1,18 @@
-# Importador Yoka – Liga Paulista 1.2
+# Importador Yoka – Liga Paulista v1.3
 
-Extensão local do Chrome para preencher um atleta por vez no formulário da Liga Paulista usando o CSV exportado da planilha do Yoka.
+Extensão local para o Chrome que preenche o cadastro de atletas da Liga Paulista a partir de um CSV do Yoka. Ela usa os identificadores HTML do formulário, portanto não depende da resolução da tela nem da posição visual dos campos.
 
-## Novidades da versão 1.2
+## Novidades da versão 1.3
 
-- remove o preenchimento de tamanho da camisa;
-- permite escolher o logo do Yoka para o painel;
-- reconhece `Link do RG`, `Link do atestado` e `Link da autorização`;
-- mostra, para o atleta atual, botões **Abrir** e **Baixar** para cada documento;
-- possui botão para ir diretamente à seção de documentação da Liga.
-
-## Fluxo automatizado
-
-Ao clicar em **Preencher atleta**, a extensão:
-
-1. preenche CPF e data de nascimento do atleta;
-2. clica no botão oficial **Buscar Dados na RFB**;
-3. aguarda o site preencher o nome;
-4. preenche lentamente os demais dados;
-5. seleciona o responsável principal entre mãe e pai;
-6. deixa documentos, conferência e o botão **Cadastrar** sob controle do operador.
-
-A extensão não usa coordenadas da tela e não depende da resolução do computador.
+- baixa RG, atestado e autorização diretamente dos links do Google Drive;
+- coloca o arquivo no campo de upload da Liga;
+- seleciona automaticamente o tipo de documento;
+- aguarda a confirmação do upload;
+- clica em **Salvar documento** dentro do modal;
+- oferece **Incluir** para cada documento e **Incluir todos os documentos**;
+- mantém o botão final **Cadastrar** exclusivamente manual;
+- rejeita arquivos maiores que 10 MB;
+- mantém os botões Abrir e Baixar como alternativas.
 
 ## Instalação
 
@@ -29,99 +20,99 @@ A extensão não usa coordenadas da tela e não depende da resolução do comput
 2. Abra `chrome://extensions` no Chrome.
 3. Ative **Modo do desenvolvedor**.
 4. Clique em **Carregar sem compactação**.
-5. Selecione a pasta `importador-yoka-liga`, na qual está o arquivo `manifest.json`.
-6. Entre normalmente na Liga Paulista.
-7. Abra `https://ligapaulistafutsal.bigmidia.com/atleta/create`.
-8. O painel **Importador Yoka** aparecerá no lado direito.
+5. Selecione a pasta `importador-yoka-liga-v1.3`, que contém o arquivo `manifest.json`.
+6. O Chrome exibirá permissões de acesso à página da Liga e ao Google Drive. Elas são necessárias para obter os documentos indicados no CSV.
+7. Entre normalmente na Liga Paulista e no Google Drive, no mesmo perfil do Chrome.
+8. Abra `https://ligapaulistafutsal.bigmidia.com/atleta/create`.
 
-Após substituir os arquivos de uma versão anterior, abra `chrome://extensions` e clique no botão de recarregar da extensão.
+### Atualizar uma instalação anterior
 
-## Importar a planilha
+1. Remova ou substitua a pasta antiga pela pasta da versão 1.3.
+2. Abra `chrome://extensions`.
+3. Clique no ícone de recarregar da extensão.
+4. Recarregue a página da Liga.
 
-No Google Sheets, use **Arquivo → Fazer download → Valores separados por vírgulas (.csv)**.
+Como a versão 1.3 adiciona permissões para o Google Drive, o Chrome pode pedir que a extensão seja reativada ou que as novas permissões sejam aceitas.
 
-Na página da Liga:
+## CSV reconhecido
 
-1. abra a aba **Dados** do painel;
-2. selecione o CSV;
-3. confira a aba **Mapeamento**;
-4. faça o primeiro teste com um único atleta;
-5. volte à aba **Cadastro** e clique em **Preencher atleta**.
+A extensão reconhece, entre outras, estas colunas:
 
-O CSV pode usar vírgula, ponto e vírgula ou tabulação como separador.
-
-## Logo do Yoka
-
-Na aba **Dados**:
-
-1. localize **Logo do Yoka**;
-2. selecione uma imagem PNG, JPG, WEBP ou SVG de até 2 MB;
-3. o logo aparecerá no cabeçalho do painel e no popup da extensão.
-
-O logo fica salvo apenas no armazenamento local do Chrome. Para embutir o logo definitivamente no pacote, substitua os ícones e a arte da extensão por arquivos fornecidos pelo clube.
-
-## Documentos do Drive
-
-A extensão reconhece estas colunas exatamente:
-
+- `Nome completo do atleta`;
+- `Data de nascimento`;
+- `CPF do atleta`;
+- `Telefone do atleta`;
+- `Posição`;
+- `Nome da mãe`, `CPF da mãe`, `Telefone/WhatsApp da mãe`;
+- `Nome do pai`, `CPF do pai`, `Telefone/WhatsApp do pai`;
+- `Responsável principal`;
+- `E-mail principal para contato`;
+- `Cidade de nascimento`;
+- `Pé predominante`;
+- `CEP`, `Logradouro`, `Número do endereço`, `Complemento`, `Bairro`, `Cidade do endereço`, `Estado`;
 - `Link do RG`;
 - `Link do atestado`;
 - `Link da autorização`.
 
-Na aba **Cadastro**, cada documento mostra:
+O tamanho da camisa não é preenchido.
 
-- **Abrir**: abre a página normal do Drive;
-- **Baixar**: tenta abrir o endereço de download direto do Drive;
-- **Ir para a seção de documentos**: desloca a página até a documentação da Liga.
+## Fluxo do atleta
 
-O arquivo ainda precisa ser selecionado manualmente no modal **Adicionar documento**. Isso evita manipular o mecanismo de upload e o envio final da Liga. Se o Drive pedir login ou autorização, conclua o acesso na guia aberta.
+1. Importe o CSV na aba **Dados**.
+2. Confira o mapeamento no primeiro uso.
+3. Na aba **Cadastro**, clique em **Preencher atleta**.
+4. A extensão preenche CPF e nascimento, clica em **Buscar Dados na RFB**, aguarda o nome e continua os demais campos lentamente.
+5. Confira os dados.
+6. Clique em **Incluir todos os documentos** ou use o botão **Incluir** de cada item.
+7. Confira a tabela de documentos da Liga.
+8. Clique manualmente em **Cadastrar**.
 
-## Colunas reconhecidas diretamente
+## Inclusão de documentos
 
-| Coluna do CSV | Campo da Liga |
-|---|---|
-| CPF do atleta | CPF/documento do atleta |
-| Data de nascimento | Data de nascimento |
-| Nome completo do atleta | Identificação no painel; o nome no formulário vem da RFB |
-| Telefone do atleta | Celular do atleta |
-| Posição | Posição |
-| Nome da mãe | Nome da mãe |
-| Nome do pai | Nome do pai |
-| Cidade de nascimento | Naturalidade |
-| E-mail principal para contato | E-mail do atleta e do responsável |
-| Nome ou apelido na camisa | Apelido/nome para evento |
-| Pé predominante | Lado dominante |
-| Equipe atual | Vínculo/clube |
-| CEP, Logradouro, Número do endereço, Complemento, Bairro, Cidade do endereço e Estado | Endereço do atleta |
+Para cada documento, a extensão executa:
 
-O tamanho da camisa não é mapeado nem preenchido.
+1. extrai o ID do arquivo do link do Drive;
+2. baixa o arquivo em memória;
+3. verifica o limite de 10 MB;
+4. abre **Adicionar documento**;
+5. procura o tipo correspondente, como RG, Atestado Médico ou Autorização;
+6. coloca o arquivo no primeiro campo de upload;
+7. aciona o upload quando necessário;
+8. aguarda o campo de confirmação da Liga;
+9. clica em **Salvar documento**.
 
-## Responsável principal
+O arquivo não precisa ser salvo em uma pasta local antes do envio.
 
-A planilha possui os dados da mãe e do pai em colunas separadas. A extensão cria internamente quatro colunas derivadas:
+### Links privados do Drive
 
-- `Gerado: nome do responsável principal`;
-- `Gerado: CPF do responsável principal`;
-- `Gerado: telefone do responsável principal`;
-- `Gerado: parentesco do responsável principal`.
+O arquivo precisa estar acessível à conta Google conectada no mesmo perfil do Chrome. Quando a extensão receber uma página de login ou de acesso negado no lugar do arquivo, ela interromperá e mostrará uma mensagem. Nesse caso:
 
-A coluna **Responsável principal** pode conter `Mãe`, `Pai`, o nome completo da mãe ou o nome completo do pai.
+1. clique em **Abrir** no documento;
+2. confirme que o arquivo abre com a conta atual;
+3. confirme que o proprietário permite download;
+4. volte à Liga e tente **Incluir** novamente.
 
-Como o CSV atual não contém a data de nascimento dos pais, a extensão não executa a consulta RFB do responsável. Ela preenche nome, CPF, telefone e parentesco diretamente. A consulta RFB do atleta continua automática.
+### Tipos de documento
 
-## Pausa entre campos
+A extensão procura nomes aproximados:
 
-A pausa padrão é **750 ms**. Recomenda-se manter entre **700 e 900 ms**. O mínimo permitido pela extensão é 550 ms.
+- RG, Registro Geral, Carteira de Identidade ou Documento de Identidade;
+- Atestado, Atestado Médico ou Atestado de Saúde;
+- Autorização, Autorização do Responsável ou Termo de Autorização.
 
-## Depois do preenchimento
+Se a Liga usar outro nome, a extensão deixará o modal aberto e mostrará os tipos encontrados. Isso permite ajustar o nome no código sem perder o arquivo ou o cadastro em andamento.
 
-1. confira todos os campos;
-2. use os botões do painel para baixar RG, atestado e autorização;
-3. clique em **Ir para a seção de documentos**;
-4. adicione cada documento e aguarde a confirmação do site;
-5. clique em **Marcar pronto e próximo** no painel;
-6. clique manualmente em **Cadastrar** na Liga.
+### Limitações
+
+- O primeiro teste deve ser feito com um atleta e conferido cuidadosamente.
+- Mudanças futuras no modal de documentos da Liga podem exigir atualização dos seletores.
+- Se o site exigir uma etapa manual adicional, o modal permanece aberto para conclusão.
+- Um documento já incluído pode ser duplicado se o botão for acionado novamente; confira a tabela antes do cadastro final.
+
+## Logo do Yoka
+
+Na aba **Dados**, selecione uma imagem PNG, JPG, WEBP ou SVG de até 2 MB. O logo fica salvo somente no armazenamento local do Chrome.
 
 ## Privacidade
 
-O CSV, o mapeamento, o progresso e o logo ficam no armazenamento local desta instalação do Chrome. A extensão não possui servidor próprio.
+O CSV, o mapeamento, o progresso e o logo ficam no armazenamento local do Chrome. Os documentos são obtidos diretamente do Google Drive e enviados ao sistema da Liga pelo próprio navegador. A extensão não possui servidor intermediário.

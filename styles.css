@@ -97,3 +97,8 @@
 .ykl-doc-status.ykl-doc-ok { color: #147a42; font-weight: 700; }
 .ykl-logo-preview { height: 82px; border: 1px dashed #bfc8d1; border-radius: 8px; display: grid; place-items: center; margin-bottom: 8px; background: #f8fafb; color: #7b8792; font-size: 11px; overflow: hidden; }
 .ykl-logo-preview img { max-width: 100%; max-height: 78px; object-fit: contain; }
+.ykl-doc-status.ykl-doc-working { color: #9a6700; font-weight: 700; }
+.ykl-doc-status.ykl-doc-success { color: #147a42; font-weight: 700; }
+.ykl-doc-status.ykl-doc-error { color: #b42318; font-weight: 700; }
+.ykl-doc-row > div { flex-wrap: wrap; justify-content: flex-end; }
+.ykl-doc-row .ykl-btn { min-width: 48px; }

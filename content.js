@@ -8,7 +8,8 @@
   const state = {
     headers: [], rows: [], mapping: {}, currentIndex: 0,
     completed: {}, delay: DEFAULT_DELAY, running: false, abort: false,
-    fields: [], filter: '', logoDataUrl: ''
+    fields: [], filter: '', logoDataUrl: '',
+    documentRunning: false, documentStatus: {}
   };
 
   const SPECIAL = {
@@ -109,6 +110,26 @@
     atestado: ['Link do atestado'],
     autorizacao: ['Link da autorização', 'Link da autorizacao']
   };
+
+  const DOCUMENT_CONFIG = {
+    rg: {
+      label: 'RG',
+      fallbackName: 'RG',
+      typeLabels: ['RG', 'Registro Geral', 'Carteira de identidade', 'Documento de identidade', 'Identidade']
+    },
+    atestado: {
+      label: 'Atestado',
+      fallbackName: 'Atestado médico',
+      typeLabels: ['Atestado médico', 'Atestado de saúde', 'Atestado']
+    },
+    autorizacao: {
+      label: 'Autorização',
+      fallbackName: 'Autorização',
+      typeLabels: ['Autorização do responsável', 'Termo de autorização', 'Autorização', 'Autorizacao']
+    }
+  };
+
+  const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -507,7 +528,7 @@
       }
       setProgress(100);
       log('✅ Preenchimento concluído. Confira os dados e clique manualmente em Cadastrar.');
-      alert('Preenchimento concluído. Confira os dados, use os links do painel para baixar os documentos e clique manualmente em Cadastrar.');
+      alert('Preenchimento concluído. Confira os dados e use “Incluir todos os documentos” no painel. O botão Cadastrar permanece manual.');
     } catch (error) {
       log(`❌ ${error.message}`);
       alert(error.message);
@@ -536,6 +557,290 @@
       atestado: getHeaderValue(row, DOCUMENT_HEADERS.atestado),
       autorizacao: getHeaderValue(row, DOCUMENT_HEADERS.autorizacao)
     };
+  }
+
+  function setDocumentStatus(key, text, kind = '') {
+    state.documentStatus[key] = { text, kind };
+    updateDocumentCard();
+  }
+
+  function waitForCondition(check, timeout = 20000, interval = 250) {
+    return new Promise((resolve, reject) => {
+      const started = Date.now();
+      const timer = setInterval(() => {
+        try {
+          const value = check();
+          if (value) {
+            clearInterval(timer);
+            resolve(value);
+          } else if (Date.now() - started >= timeout) {
+            clearInterval(timer);
+            reject(new Error('Tempo limite excedido.'));
+          }
+        } catch (error) {
+          clearInterval(timer);
+          reject(error);
+        }
+      }, interval);
+    });
+  }
+
+  function base64ToBytes(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function fetchDocumentFromExtension(url, fallbackName, onProgress) {
+    return new Promise((resolve, reject) => {
+      const port = chrome.runtime.connect({ name: 'ykl-drive-fetch' });
+      const parts = [];
+      let meta = null;
+      let received = 0;
+      let settled = false;
+
+      const finishReject = error => {
+        if (settled) return;
+        settled = true;
+        try { port.disconnect(); } catch { /* nada */ }
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+
+      port.onDisconnect.addListener(() => {
+        if (!settled && chrome.runtime.lastError) {
+          finishReject(new Error(chrome.runtime.lastError.message));
+        }
+      });
+
+      port.onMessage.addListener(message => {
+        if (message?.type === 'error') {
+          finishReject(new Error(message.message || 'Falha ao baixar o documento.'));
+          return;
+        }
+        if (message?.type === 'meta') {
+          meta = message;
+          if (Number(meta.size) > MAX_DOCUMENT_BYTES) {
+            finishReject(new Error('O documento tem mais de 10 MB.'));
+          }
+          return;
+        }
+        if (message?.type === 'chunk') {
+          const bytes = base64ToBytes(message.data || '');
+          parts.push(bytes);
+          received += bytes.byteLength;
+          if (meta?.size && typeof onProgress === 'function') {
+            onProgress(Math.min(100, Math.round((received / meta.size) * 100)));
+          }
+          return;
+        }
+        if (message?.type === 'done') {
+          if (!meta) return finishReject(new Error('O download terminou sem informações do arquivo.'));
+          settled = true;
+          try { port.disconnect(); } catch { /* nada */ }
+          const blob = new Blob(parts, { type: meta.mimeType || 'application/octet-stream' });
+          resolve(new File([blob], meta.filename || fallbackName || 'documento', {
+            type: meta.mimeType || blob.type || 'application/octet-stream',
+            lastModified: Date.now()
+          }));
+        }
+      });
+
+      port.postMessage({ type: 'fetch-document', url, fallbackName });
+    });
+  }
+
+  function findAddDocumentButton() {
+    return $$('button', document).find(button => {
+      const text = normalize(button.textContent || '');
+      const onclick = button.getAttribute('onclick') || '';
+      return text.includes('adicionar documento') || onclick.includes('docCreateAbrir(0)');
+    });
+  }
+
+  async function openDocumentModal() {
+    const button = findAddDocumentButton();
+    if (!button) throw new Error('Não encontrei o botão “Adicionar documento” na página.');
+    button.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await sleep(250);
+    button.click();
+    try {
+      return await waitForCondition(() => {
+        const modal = document.getElementById('modalFormDoc');
+        const body = modal?.querySelector('.modal-body');
+        const type = body?.querySelector('#atletadocumento-id_tipo');
+        return modal && body && type ? modal : null;
+      }, 20000, 250);
+    } catch {
+      throw new Error('O formulário de documento não terminou de carregar.');
+    }
+  }
+
+  function selectDocumentType(modal, key) {
+    const config = DOCUMENT_CONFIG[key];
+    const select = modal.querySelector('#atletadocumento-id_tipo');
+    if (!select) throw new Error('Não encontrei a lista de tipos de documento.');
+    const wanted = config.typeLabels.map(normalize);
+    const options = [...select.options].filter(option => option.value);
+    let option = options.find(item => wanted.includes(normalize(item.textContent)));
+    if (!option) {
+      option = options.find(item => wanted.some(label => {
+        const text = normalize(item.textContent);
+        return text.includes(label) || label.includes(text);
+      }));
+    }
+    if (!option) {
+      const available = options.map(item => item.textContent.trim()).filter(Boolean).join(', ');
+      throw new Error(`Não encontrei o tipo “${config.label}” na lista da Liga. Tipos disponíveis: ${available || 'nenhum'}.`);
+    }
+    nativeSet(select, option.value);
+    emit(select, 'input');
+    emit(select, 'change');
+    return option.textContent.trim();
+  }
+
+  function chooseDocumentFileInput(modal) {
+    const inputs = [...modal.querySelectorAll('input[type="file"]')]
+      .filter(input => !input.disabled && !input.closest('.file-input')?.classList.contains('file-input-disabled'));
+    if (!inputs.length) throw new Error('Não encontrei o campo para selecionar o arquivo.');
+    return inputs.find(input => /imagem1|frente|arquivo|file/i.test(`${input.id} ${input.name}`)) || inputs[0];
+  }
+
+  function assignFileToInput(input, file) {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
+    if (descriptor?.set) descriptor.set.call(input, transfer.files);
+    else input.files = transfer.files;
+    emit(input, 'input');
+    emit(input, 'change');
+  }
+
+  function findUploadButton(modal) {
+    const candidates = [...modal.querySelectorAll('button, a')];
+    return candidates.find(element => {
+      const text = normalize(`${element.textContent || ''} ${element.title || ''}`);
+      return element.matches('.fileinput-upload-button, .kv-file-upload') || text === 'enviar' || text.includes('fazer upload') || text === 'upload';
+    });
+  }
+
+  async function waitForDocumentUpload(modal, previousValue = '') {
+    const getUploadedValue = () => {
+      const field = modal.querySelector('#doc_obj_imagem1') || document.getElementById('doc_obj_imagem1');
+      return String(field?.value || '').trim();
+    };
+
+    await sleep(1800);
+    if (!getUploadedValue()) {
+      const uploadButton = findUploadButton(modal);
+      if (uploadButton && !uploadButton.disabled) uploadButton.click();
+    }
+
+    try {
+      return await waitForCondition(() => {
+        const value = getUploadedValue();
+        if (value && value !== previousValue) return value;
+        const error = modal.querySelector('.file-error-message:not(:empty), .kv-fileinput-error:not(:empty), .file-preview-status.text-danger');
+        if (error?.textContent.trim()) throw new Error(error.textContent.trim());
+        return null;
+      }, 60000, 350);
+    } catch (error) {
+      if (error.message === 'Tempo limite excedido.') {
+        throw new Error('O upload não foi confirmado em 60 segundos. O modal ficou aberto para você conferir ou concluir manualmente.');
+      }
+      throw error;
+    }
+  }
+
+  async function saveDocumentModal(modal) {
+    const save = document.getElementById('btnSalvarDocumentoModal');
+    if (!save) throw new Error('Não encontrei o botão “Salvar documento”.');
+    save.click();
+    try {
+      await waitForCondition(() => {
+        const visible = modal.classList.contains('show') || getComputedStyle(modal).display !== 'none';
+        return visible ? null : true;
+      }, 15000, 250);
+    } catch {
+      throw new Error('O arquivo foi enviado, mas o modal não confirmou o salvamento. Confira e clique em “Salvar documento”.');
+    }
+  }
+
+  async function includeDocumentInternal(key) {
+    const config = DOCUMENT_CONFIG[key];
+    const url = currentDocuments()[key];
+    if (!normalizeExternalUrl(url)) throw new Error(`${config.label}: este atleta não possui link válido.`);
+
+    setDocumentStatus(key, 'Baixando 0%…', 'working');
+    log(`→ Baixando ${config.label} do Drive...`);
+    const athlete = displayName(currentRow()).replace(/[^a-zA-Z0-9À-ÿ _-]+/g, '').trim();
+    const file = await fetchDocumentFromExtension(url, `${config.fallbackName} - ${athlete || 'atleta'}`, percent => {
+      setDocumentStatus(key, `Baixando ${percent}%…`, 'working');
+    });
+    if (file.size > MAX_DOCUMENT_BYTES) throw new Error(`${config.label}: arquivo maior que 10 MB.`);
+
+    setDocumentStatus(key, 'Abrindo formulário…', 'working');
+    const modal = await openDocumentModal();
+    const selectedType = selectDocumentType(modal, key);
+    await sleep(500);
+
+    const previousUploaded = String((modal.querySelector('#doc_obj_imagem1') || document.getElementById('doc_obj_imagem1'))?.value || '').trim();
+    const input = chooseDocumentFileInput(modal);
+    assignFileToInput(input, file);
+    setDocumentStatus(key, 'Enviando…', 'working');
+    log(`→ Enviando ${config.label}: ${file.name} (${Math.ceil(file.size / 1024)} KB)`);
+    await waitForDocumentUpload(modal, previousUploaded);
+    setDocumentStatus(key, 'Salvando…', 'working');
+    await saveDocumentModal(modal);
+    setDocumentStatus(key, 'Incluído', 'success');
+    log(`✓ ${config.label} incluído como “${selectedType}”.`);
+  }
+
+  async function includeDocument(key) {
+    if (state.documentRunning || state.running) return;
+    state.documentRunning = true;
+    updateControls();
+    try {
+      await includeDocumentInternal(key);
+    } catch (error) {
+      setDocumentStatus(key, 'Erro', 'error');
+      log(`❌ ${DOCUMENT_CONFIG[key].label}: ${error.message}`);
+      alert(error.message);
+    } finally {
+      state.documentRunning = false;
+      updateControls();
+      updateDocumentCard();
+    }
+  }
+
+  async function includeAllDocuments() {
+    if (state.documentRunning || state.running) return;
+    const docs = currentDocuments();
+    const keys = Object.keys(DOCUMENT_CONFIG).filter(key => normalizeExternalUrl(docs[key]));
+    if (!keys.length) return alert('Este atleta não possui links válidos para RG, atestado ou autorização.');
+    state.documentRunning = true;
+    updateControls();
+    const errors = [];
+    try {
+      for (const key of keys) {
+        try {
+          await includeDocumentInternal(key);
+        } catch (error) {
+          setDocumentStatus(key, 'Erro', 'error');
+          log(`❌ ${DOCUMENT_CONFIG[key].label}: ${error.message}`);
+          errors.push(`${DOCUMENT_CONFIG[key].label}: ${error.message}`);
+          const modal = document.getElementById('modalFormDoc');
+          const visible = modal && (modal.classList.contains('show') || getComputedStyle(modal).display !== 'none');
+          if (visible) break;
+        }
+      }
+      if (!errors.length) alert('Todos os documentos disponíveis foram incluídos. Confira a tabela de documentos antes de cadastrar o atleta.');
+      else alert(`A inclusão terminou com problema:\n\n${errors.join('\n')}`);
+    } finally {
+      state.documentRunning = false;
+      updateControls();
+      updateDocumentCard();
+    }
   }
 
   function normalizeExternalUrl(raw) {
@@ -585,12 +890,19 @@
       const status = $(`#ykl-doc-${key}-status`);
       const open = $(`#ykl-doc-${key}-open`);
       const download = $(`#ykl-doc-${key}-download`);
+      const include = $(`#ykl-doc-${key}-include`);
+      const custom = state.documentStatus[key];
       if (status) {
-        status.textContent = has ? 'Link disponível' : 'Sem link';
-        status.className = `ykl-doc-status ${has ? 'ykl-doc-ok' : ''}`;
+        status.textContent = custom?.text || (has ? 'Link disponível' : 'Sem link');
+        status.className = `ykl-doc-status ${custom?.kind ? `ykl-doc-${custom.kind}` : has ? 'ykl-doc-ok' : ''}`;
       }
-      if (open) open.disabled = !has;
-      if (download) download.disabled = !has;
+      if (open) open.disabled = !has || state.documentRunning;
+      if (download) download.disabled = !has || state.documentRunning;
+      if (include) include.disabled = !has || state.documentRunning || state.running;
+    }
+    const includeAll = $('#ykl-doc-include-all');
+    if (includeAll) {
+      includeAll.disabled = state.documentRunning || state.running || !Object.values(docs).some(value => normalizeExternalUrl(value));
     }
   }
 
@@ -674,11 +986,13 @@
 
   function updateControls() {
     const hasRows = state.rows.length > 0;
-    $('#ykl-fill').disabled = !hasRows || state.running;
+    const busy = state.running || state.documentRunning;
+    $('#ykl-fill').disabled = !hasRows || busy;
     $('#ykl-abort').disabled = !state.running;
-    $('#ykl-prev').disabled = !hasRows || state.currentIndex <= 0 || state.running;
-    $('#ykl-next').disabled = !hasRows || state.currentIndex >= state.rows.length - 1 || state.running;
-    $('#ykl-done-next').disabled = !hasRows || state.running;
+    $('#ykl-prev').disabled = !hasRows || state.currentIndex <= 0 || busy;
+    $('#ykl-next').disabled = !hasRows || state.currentIndex >= state.rows.length - 1 || busy;
+    $('#ykl-done-next').disabled = !hasRows || busy;
+    updateDocumentCard();
   }
 
   function renderMapping() {
@@ -739,11 +1053,12 @@
           </div>
           <div class="ykl-card ykl-doc-card">
             <h3>Documentos no Drive</h3>
-            <div class="ykl-doc-row"><span><strong>RG</strong><small id="ykl-doc-rg-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-rg-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-rg-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
-            <div class="ykl-doc-row"><span><strong>Atestado</strong><small id="ykl-doc-atestado-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-atestado-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-atestado-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
-            <div class="ykl-doc-row"><span><strong>Autorização</strong><small id="ykl-doc-autorizacao-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-autorizacao-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-autorizacao-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
-            <button id="ykl-go-docs" class="ykl-btn ykl-full" type="button">Ir para a seção de documentos</button>
-            <div class="ykl-muted" style="margin-top:6px">Baixe o arquivo e selecione-o manualmente em “Adicionar documento”.</div>
+            <div class="ykl-doc-row"><span><strong>RG</strong><small id="ykl-doc-rg-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-rg-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-rg-download" class="ykl-btn" type="button">Baixar</button><button id="ykl-doc-rg-include" class="ykl-btn ykl-blue" type="button">Incluir</button></div></div>
+            <div class="ykl-doc-row"><span><strong>Atestado</strong><small id="ykl-doc-atestado-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-atestado-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-atestado-download" class="ykl-btn" type="button">Baixar</button><button id="ykl-doc-atestado-include" class="ykl-btn ykl-blue" type="button">Incluir</button></div></div>
+            <div class="ykl-doc-row"><span><strong>Autorização</strong><small id="ykl-doc-autorizacao-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-autorizacao-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-autorizacao-download" class="ykl-btn" type="button">Baixar</button><button id="ykl-doc-autorizacao-include" class="ykl-btn ykl-blue" type="button">Incluir</button></div></div>
+            <button id="ykl-doc-include-all" class="ykl-btn ykl-primary ykl-full" type="button">Incluir todos os documentos</button>
+            <button id="ykl-go-docs" class="ykl-btn ykl-full" type="button" style="margin-top:6px">Ir para a seção de documentos</button>
+            <div class="ykl-muted" style="margin-top:6px">A extensão baixa o arquivo em memória, seleciona o tipo, envia e salva o documento. O cadastro final do atleta continua manual.</div>
           </div>
           <div class="ykl-card">
             <label class="ykl-label" for="ykl-delay">Pausa por campo (milissegundos)</label>
@@ -804,7 +1119,9 @@
     for (const key of Object.keys(DOCUMENT_HEADERS)) {
       $(`#ykl-doc-${key}-open`).addEventListener('click', () => openExternal(currentDocuments()[key], false));
       $(`#ykl-doc-${key}-download`).addEventListener('click', () => openExternal(currentDocuments()[key], true));
+      $(`#ykl-doc-${key}-include`).addEventListener('click', () => includeDocument(key));
     }
+    $('#ykl-doc-include-all').addEventListener('click', includeAllDocuments);
     $('#ykl-go-docs').addEventListener('click', () => {
       const target = document.getElementById('portlet_doc');
       if (!target) return alert('A seção de documentos não foi encontrada nesta página.');
@@ -818,6 +1135,7 @@
 
   function changeIndex(delta) {
     state.currentIndex = Math.max(0, Math.min(state.rows.length - 1, state.currentIndex + delta));
+    state.documentStatus = {};
     saveState(); updateAthleteCard(); updateControls(); setProgress(0); clearLog();
   }
 
@@ -827,7 +1145,7 @@
     const parsedRaw = csvParse(text);
     if (!parsedRaw.headers.length || !parsedRaw.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
     const parsed = addDerivedResponsibleColumns(parsedRaw.headers, parsedRaw.rows);
-    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {};
+    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {};
     state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
     autoMap(); saveState(); renderMapping(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
     const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
@@ -838,7 +1156,7 @@
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '' });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {} });
     chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
