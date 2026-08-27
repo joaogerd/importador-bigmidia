@@ -4,7 +4,7 @@ Extensão Chrome do Yoka para auxiliar o cadastro de atletas na Liga Paulista / 
 
 ## Versão atual
 
-**v1.4.4**
+**v1.4.5**
 
 Página oficial de inclusão de atleta:
 
@@ -28,6 +28,14 @@ A partir da v1.4.3, o painel possui o filtro **Cadastrar por categoria**. As cat
 
 Na v1.4.4, o campo **Tipo Logradouro** deixou de participar do mapeamento fuzzy com a coluna `Logradouro`. Quando necessário, a extensão deriva somente o tipo do endereço, como `Rua`, `Avenida`, `Travessa` etc., evitando enviar o logradouro completo para esse campo.
 
+## Mapeamento e retorno pós-cadastro
+
+A partir da v1.4.5, a aba **Mapeamento** possui o botão **Salvar mapeamento**. O mapeamento confirmado fica persistido no `chrome.storage.local` e é restaurado nas próximas páginas/sessões antes das sugestões do automapeamento.
+
+Depois que o operador clica no botão **Cadastrar** do BigMidia, o portal normalmente volta para a tela inicial. A extensão passa a acompanhar todo o domínio BigMidia para detectar esse retorno. Quando um cadastro pendente é confirmado, ela atualiza o status, avança para o próximo atleta e retorna automaticamente para `/atleta/create`. O próximo cadastro continua dependendo do clique manual em **Preencher atleta**.
+
+O popup da extensão também possui o botão **Abrir cadastro de atleta** para abrir diretamente a página correta do BigMidia.
+
 ## Versões preservadas
 
 Os pacotes de cada versão ficam em `versions/`:
@@ -41,6 +49,7 @@ Os pacotes de cada versão ficam em `versions/`:
 - v1.4.2
 - v1.4.3
 - v1.4.4
+- v1.4.5
 
 Consulte `CHANGELOG.md` para a evolução funcional.
 
