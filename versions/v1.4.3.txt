@@ -1,1 +1,0 @@
-Pacote v1.4.3: filtro dinâmico por categoria. O ZIP operacional correspondente é importador-yoka-liga-v1.4.3.zip.

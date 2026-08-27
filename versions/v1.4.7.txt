@@ -1,3 +1,0 @@
-Importador BigMidia v1.4.7
-Pacote operacional preservado no desenvolvimento.
-SHA256: 04d90cff18081835bf8b866e6462fe4fd29cb6ab9053b1f6486422804b282ddf
