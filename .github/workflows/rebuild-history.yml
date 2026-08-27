@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ARCHIVE_BRANCH: archive/zip-imports-2026-08-27
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -35,8 +36,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Only ZIPs that were actually produced/used as extension packages are authoritative.
-          # The manifest version is validated before every commit.
           declare -a RELEASES=(
             "1.0.0|versions/importador-yoka-liga.zip"
             "1.1.0|versions/importador-yoka-liga_v1.1.zip"
@@ -63,7 +62,6 @@ jobs:
           : > /tmp/release-shas.txt
           : > /tmp/missing-versions.txt
 
-          first=1
           for item in "${RELEASES[@]}"; do
             version="${item%%|*}"
             relative_zip="${item#*|}"
@@ -86,12 +84,7 @@ jobs:
             fi
             source_dir="$(dirname "$manifest")"
 
-            actual_version="$(python - "$manifest" <<'PY'
-import json, sys
-with open(sys.argv[1], encoding='utf-8') as f:
-    print(json.load(f)['version'])
-PY
-)"
+            actual_version="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["version"])' "$manifest")"
             if [[ "$actual_version" != "$version" ]]; then
               echo "Versão incorreta: $relative_zip diz $actual_version; esperado $version" >&2
               exit 1
@@ -100,8 +93,6 @@ PY
             find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
             cp -a "$source_dir"/. .
             printf '%s\n' "$version" > VERSION
-
-            # Keep releases free of local artifacts/secrets.
             rm -f .clasp.json *.log 2>/dev/null || true
 
             git add -A
@@ -110,7 +101,6 @@ PY
             git tag -f "v${version}" "$sha"
             echo "${version}|${sha}" >> /tmp/release-shas.txt
 
-            # Release asset: installable Chrome extension, with files at ZIP root.
             (cd "$source_dir" && zip -q -r "/tmp/assets/importador-bigmidia-v${version}.zip" .)
           done
 
@@ -120,7 +110,7 @@ PY
           fi
 
           git push --force origin HEAD:refs/heads/source-history
-          git push --force origin 'refs/tags/v*'
+          git push --force origin --tags
 
           latest_version="$(tail -n 1 /tmp/release-shas.txt | cut -d'|' -f1)"
           echo "latest_version=${latest_version}" >> "$GITHUB_OUTPUT"
@@ -140,7 +130,6 @@ PY
               gh release upload "$tag" "$asset" --clobber
             else
               gh release create "$tag" "$asset" \
-                --target "$sha" \
                 --title "Importador BigMidia ${tag}" \
                 --notes "$notes"
             fi
@@ -166,10 +155,7 @@ PY
           manifest="$(find /tmp/latest -type f -name manifest.json -print -quit)"
           source_dir="$(dirname "$manifest")"
 
-          # Remove binary-version storage from main. It remains preserved on ARCHIVE_BRANCH.
           git rm -r --ignore-unmatch versions
-
-          # Replace extension runtime files at repository root.
           rm -rf icons
           rm -f manifest.json content.js background.js popup.html popup.js styles.css exemplo-atletas.csv EXTENSION_README.md
           cp -a "$source_dir"/manifest.json .
