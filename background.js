@@ -62,8 +62,8 @@ async function fetchAndStreamDocument(message, port, isCancelled) {
     throw new Error('O documento tem mais de 10 MB, limite informado pela Liga.');
   }
 
-  const mimeType = response.headers.get('content-type') || 'application/octet-stream';
-  const filename = filenameFromResponse(response, message.fallbackName, mimeType);
+  const responseMimeType = response.headers.get('content-type') || 'application/octet-stream';
+  const responseFilename = filenameFromResponse(response, message.fallbackName, responseMimeType);
   const reader = response.body?.getReader();
   if (!reader) throw new Error('O navegador não conseguiu ler o conteúdo do documento.');
 
@@ -84,14 +84,21 @@ async function fetchAndStreamDocument(message, port, isCancelled) {
     chunks.push(value);
   }
 
-  port.postMessage({ type: 'meta', filename, mimeType, size: total });
-
   let buffer = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
     buffer.set(chunk, offset);
     offset += chunk.byteLength;
   }
+
+  const detected = detectSupportedDocumentType(buffer, responseFilename, responseMimeType);
+  if (!detected) {
+    throw new Error('O arquivo baixado não é PDF, JPG/JPEG ou PNG, formatos aceitos pela Liga.');
+  }
+
+  const mimeType = detected.mimeType;
+  const filename = normalizeDocumentFilename(responseFilename, detected.extension);
+  port.postMessage({ type: 'meta', filename, mimeType, size: total });
 
   let sequence = 0;
   for (let start = 0; start < buffer.byteLength; start += MESSAGE_CHUNK_BYTES) {
@@ -172,6 +179,52 @@ function extensionForMime(mimeType) {
     'image/heif': '.heif'
   };
   return map[mime] || '';
+}
+
+function detectSupportedDocumentType(bytes, filename, responseMimeType) {
+  if (bytes && bytes.length >= 5 &&
+      bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 &&
+      bytes[3] === 0x46 && bytes[4] === 0x2D) {
+    return { mimeType: 'application/pdf', extension: '.pdf' };
+  }
+
+  if (bytes && bytes.length >= 3 &&
+      bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+    return { mimeType: 'image/jpeg', extension: '.jpg' };
+  }
+
+  if (bytes && bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+      bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) {
+    return { mimeType: 'image/png', extension: '.png' };
+  }
+
+  const mime = String(responseMimeType || '').split(';')[0].trim().toLowerCase();
+  if (mime === 'application/pdf') return { mimeType: 'application/pdf', extension: '.pdf' };
+  if (mime === 'image/jpeg' || mime === 'image/jpg') return { mimeType: 'image/jpeg', extension: '.jpg' };
+  if (mime === 'image/png') return { mimeType: 'image/png', extension: '.png' };
+
+  const extension = (String(filename || '').match(/\.([a-z0-9]{2,8})$/i) || [])[1]?.toLowerCase();
+  if (extension === 'pdf') return { mimeType: 'application/pdf', extension: '.pdf' };
+  if (extension === 'jpg' || extension === 'jpeg') return { mimeType: 'image/jpeg', extension: '.jpg' };
+  if (extension === 'png') return { mimeType: 'image/png', extension: '.png' };
+
+  return null;
+}
+
+function normalizeDocumentFilename(filename, extension) {
+  let base = sanitizeFilename(filename || 'documento');
+  const current = base.match(/\.([a-z0-9]{2,8})$/i);
+  if (current) {
+    const ext = `.${current[1].toLowerCase()}`;
+    const accepted = ['.pdf', '.jpg', '.jpeg', '.png'];
+    if (accepted.includes(ext)) {
+      if (extension === '.jpg' && ext === '.jpeg') return base;
+      if (ext === extension) return base;
+    }
+    base = base.slice(0, -current[0].length);
+  }
+  return `${base}${extension}`;
 }
 
 function bytesToBase64(bytes) {

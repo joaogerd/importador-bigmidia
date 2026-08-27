@@ -1,4 +1,4 @@
-# Importador Yoka — Liga Paulista v1.4.0
+# Importador Yoka — Liga Paulista v1.4.1
 
 Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atletas no BigMidia / Liga Paulista.
 
@@ -56,3 +56,9 @@ A API exige uma chave armazenada em `ScriptProperties`. A chave e a URL ficam no
 ## Observação
 
 O botão final **Cadastrar** continua manual. A automação preenche e envia documentos, mas a decisão final continua com o operador.
+
+
+## Correção 1.4.1
+- Detecta PDF/JPG/PNG pela assinatura real dos bytes baixados do Drive.
+- Normaliza MIME e extensão antes de entregar o arquivo ao BigMidia.
+- Evita o erro “Tipo de arquivo inválido” quando o Drive responde como application/octet-stream.

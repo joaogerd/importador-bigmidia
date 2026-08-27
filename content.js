@@ -973,7 +973,7 @@
     const input = chooseDocumentFileInput(modal);
     assignFileToInput(input, file);
     setDocumentStatus(key, 'Enviando…', 'working');
-    log(`→ Enviando ${config.label}: ${file.name} (${Math.ceil(file.size / 1024)} KB)`);
+    log(`→ Enviando ${config.label}: ${file.name} (${Math.ceil(file.size / 1024)} KB, ${file.type || 'sem MIME'})`);
     await waitForDocumentUpload(modal, previousUploaded);
     setDocumentStatus(key, 'Salvando…', 'working');
     await saveDocumentModal(modal);
