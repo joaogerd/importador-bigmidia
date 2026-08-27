@@ -8,3 +8,8 @@ chrome.storage.local.get(['yklStateV2'], result => {
     fallback.hidden = true;
   }
 });
+
+
+document.getElementById('open-create')?.addEventListener('click', () => {
+  chrome.tabs.create({ url: 'https://ligapaulistafutsal.bigmidia.com/atleta/create' });
+});

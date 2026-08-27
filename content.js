@@ -12,7 +12,7 @@
     documentRunning: false, documentStatus: {},
     apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {},
     categoryFilter: '', availableCategories: [],
-    pendingRegistration: null
+    pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0
   };
 
   const SPECIAL = {
@@ -631,7 +631,8 @@
         const id = idHeader ? String(row[idHeader] || '').trim() : '';
         if (id && state.serverStatuses[id] === 'Cadastrado') state.completed[index] = true;
       });
-      state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
+      state.savedMapping = Object.fromEntries(Object.entries(state.savedMapping || {}).filter(([,h]) => state.headers.includes(h)));
+      state.mapping = { ...state.savedMapping };
       autoMap();
       saveState();
       renderMapping();
@@ -675,11 +676,14 @@
   }
 
   function rememberPendingRegistration() {
-    if (state.dataSource !== 'sheets' || !currentAthleteId()) return;
+    if (!state.rows.length) return;
+    const athleteId = currentAthleteId();
+    if (state.dataSource === 'sheets' && !athleteId) return;
     state.pendingRegistration = {
-      athleteId: currentAthleteId(),
+      athleteId: athleteId || '',
       index: state.currentIndex,
       submittedAt: Date.now(),
+      dataSource: state.dataSource,
       documents: {
         rg: documentSyncStatus('rg'),
         atestado: documentSyncStatus('atestado'),
@@ -691,36 +695,47 @@
 
   async function finalizePendingRegistrationIfPossible() {
     const pending = state.pendingRegistration;
-    if (!pending || !state.apiUrl || !state.apiToken) return;
+    if (!pending) return false;
     const age = Date.now() - Number(pending.submittedAt || 0);
-    if (age > 30 * 60 * 1000) {
+    if (age > 10 * 60 * 1000) {
       state.pendingRegistration = null;
       saveState();
-      return;
+      return false;
     }
 
     const onCreateForm = Boolean(document.getElementById(FORM_ID));
     const successAlert = [...document.querySelectorAll('.alert-success, .alert.alert-success, [class*="success"]')]
       .some(el => /cadastr|salv|sucesso/i.test(el.textContent || ''));
-    if (onCreateForm && !successAlert) return;
+    if (onCreateForm && !successAlert) return false;
 
     try {
-      await apiRequest('updateStatus', {
-        athleteId: pending.athleteId,
-        status: 'Cadastrado',
-        rg: pending.documents?.rg || 'Pendente',
-        atestado: pending.documents?.atestado || 'Pendente',
-        autorizacao: pending.documents?.autorizacao || 'Pendente',
-        bigmidiaUrl: location.href,
-        bigmidiaId: extractBigMidiaId(location.href),
-        observation: 'Cadastro confirmado automaticamente após o envio do formulário do BigMidia.'
-      });
-      state.serverStatuses[pending.athleteId] = 'Cadastrado';
-      if (Number.isInteger(pending.index)) state.completed[pending.index] = true;
+      if (pending.dataSource === 'sheets') {
+        if (!state.apiUrl || !state.apiToken) return false;
+        await apiRequest('updateStatus', {
+          athleteId: pending.athleteId,
+          status: 'Cadastrado',
+          rg: pending.documents?.rg || 'Pendente',
+          atestado: pending.documents?.atestado || 'Pendente',
+          autorizacao: pending.documents?.autorizacao || 'Pendente',
+          bigmidiaUrl: location.href,
+          bigmidiaId: extractBigMidiaId(location.href),
+          observation: 'Cadastro confirmado automaticamente após o envio do formulário do BigMidia.'
+        });
+        state.serverStatuses[pending.athleteId] = 'Cadastrado';
+      }
+
+      if (Number.isInteger(pending.index)) {
+        state.completed[pending.index] = true;
+        if (state.currentIndex === pending.index && state.currentIndex < state.rows.length - 1) {
+          state.currentIndex++;
+        }
+      }
       state.pendingRegistration = null;
-      saveState();
+      await saveState();
+      return true;
     } catch (error) {
-      console.warn('[Importador Yoka] Não foi possível confirmar o cadastro no Sheets:', error);
+      console.warn('[Importador Yoka] Não foi possível confirmar o cadastro:', error);
+      return false;
     }
   }
 
@@ -1237,20 +1252,63 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
   function mappedCount() { return Object.values(state.mapping).filter(h => state.headers.includes(h)).length; }
 
   function saveState() {
-    chrome.storage.local.set({ [STORAGE_KEY]: {
-      headers: state.headers, rows: state.rows, mapping: state.mapping,
-      currentIndex: state.currentIndex, completed: state.completed, delay: state.delay, logoDataUrl: state.logoDataUrl,
-      apiUrl: state.apiUrl, apiToken: state.apiToken, dataSource: state.dataSource,
-      serverStatuses: state.serverStatuses, pendingRegistration: state.pendingRegistration
-    }});
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [STORAGE_KEY]: {
+        headers: state.headers, rows: state.rows, mapping: state.savedMapping,
+        currentIndex: state.currentIndex, completed: state.completed, delay: state.delay, logoDataUrl: state.logoDataUrl,
+        apiUrl: state.apiUrl, apiToken: state.apiToken, dataSource: state.dataSource,
+        serverStatuses: state.serverStatuses, pendingRegistration: state.pendingRegistration,
+        categoryFilter: state.categoryFilter, availableCategories: state.availableCategories,
+        mappingSavedAt: state.mappingSavedAt
+      }}, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
+    });
   }
 
   function loadState() {
     return new Promise(resolve => chrome.storage.local.get([STORAGE_KEY], result => {
       const saved = result[STORAGE_KEY];
-      if (saved) Object.assign(state, saved);
+      if (saved) {
+        Object.assign(state, saved);
+        state.savedMapping = { ...(saved.mapping || {}) };
+        state.mapping = { ...(saved.mapping || {}) };
+      }
       resolve();
     }));
+  }
+
+  function mappingIsDirty() {
+    return JSON.stringify(state.mapping) !== JSON.stringify(state.savedMapping);
+  }
+
+  function updateMappingSaveStatus(message = '') {
+    const el = $('#ykl-map-save-status');
+    if (!el) return;
+    if (message) { el.textContent = message; return; }
+    if (mappingIsDirty()) {
+      el.textContent = 'Alterações ainda não salvas.';
+      return;
+    }
+    if (state.mappingSavedAt) {
+      el.textContent = `Mapeamento salvo às ${new Date(state.mappingSavedAt).toLocaleTimeString('pt-BR')}.`;
+    } else {
+      el.textContent = 'Mapeamento ainda não foi salvo manualmente.';
+    }
+  }
+
+  async function saveMappingNow() {
+    state.savedMapping = { ...state.mapping };
+    state.mappingSavedAt = Date.now();
+    try {
+      await saveState();
+      updateMappingSaveStatus();
+      log('✓ Mapeamento salvo neste Chrome.');
+    } catch (error) {
+      updateMappingSaveStatus(`Erro ao salvar: ${error.message}`);
+      alert(`Não consegui salvar o mapeamento: ${error.message}`);
+    }
   }
 
   function log(message) {
@@ -1318,7 +1376,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       label.innerHTML = `${escapeHtml(field.label)} <span class="ykl-map-id">${escapeHtml(field.id)}</span>`;
       const select = document.createElement('select'); select.dataset.fieldId = field.id;
       select.innerHTML = `<option value="">— não preencher —</option>` + state.headers.map(h => `<option value="${escapeAttr(h)}" ${h === mapped ? 'selected' : ''}>${escapeHtml(h)}</option>`).join('');
-      select.addEventListener('change', () => { if (select.value) state.mapping[field.id] = select.value; else delete state.mapping[field.id]; saveState(); updateAthleteCard(); });
+      select.addEventListener('change', () => { if (select.value) state.mapping[field.id] = select.value; else delete state.mapping[field.id]; updateMappingSaveStatus(); updateAthleteCard(); });
       row.append(label, select); list.appendChild(row);
     }
   }
@@ -1389,6 +1447,8 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         </section>
         <section class="ykl-section" data-section="mapeamento">
           <div class="ykl-row"><input id="ykl-map-search" type="search" class="ykl-grow" placeholder="Buscar campo..."><button id="ykl-auto-map" class="ykl-btn ykl-blue">Automapear</button></div>
+          <div class="ykl-row" style="margin-top:7px"><button id="ykl-save-map" class="ykl-btn ykl-primary ykl-grow" type="button">Salvar mapeamento</button></div>
+          <div id="ykl-map-save-status" class="ykl-muted" style="margin:6px 0 4px">Mapeamento ainda não foi salvo manualmente.</div>
           <div id="ykl-map-list" class="ykl-map-list"></div>
         </section>
         <section class="ykl-section" data-section="dados">
@@ -1454,7 +1514,8 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       saveState(); updateAthleteCard(); updateControls(); setProgress(0); clearLog();
     });
     $('#ykl-delay').addEventListener('change', e => { state.delay = Math.max(MIN_DELAY, Math.min(3000, Number(e.target.value) || DEFAULT_DELAY)); e.target.value = state.delay; saveState(); });
-    $('#ykl-auto-map').addEventListener('click', () => { autoMap(); renderMapping(); updateAthleteCard(); saveState(); });
+    $('#ykl-auto-map').addEventListener('click', () => { autoMap(); renderMapping(); updateAthleteCard(); updateMappingSaveStatus(); });
+    $('#ykl-save-map').addEventListener('click', saveMappingNow);
     $('#ykl-map-search').addEventListener('input', e => { state.filter = e.target.value; renderMapping(); });
     $('#ykl-logo-file').addEventListener('change', handleLogoFile);
     $('#ykl-logo-remove').addEventListener('click', removeLogo);
@@ -1489,8 +1550,9 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     if (!parsedRaw.headers.length || !parsedRaw.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
     const parsed = addDerivedResponsibleColumns(parsedRaw.headers, parsedRaw.rows);
     state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {}; state.dataSource = 'csv'; state.serverStatuses = {}; state.categoryFilter = ''; state.availableCategories = [];
-    state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
-    autoMap(); saveState(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
+    state.savedMapping = Object.fromEntries(Object.entries(state.savedMapping || {}).filter(([,h]) => state.headers.includes(h)));
+    state.mapping = { ...state.savedMapping };
+    autoMap(); saveState(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateMappingSaveStatus(); switchTab('mapeamento');
     const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
     alert(modeloYoka
       ? `${state.rows.length} atletas importados. O modelo de colunas do Yoka foi reconhecido e mapeado automaticamente. Confira o mapeamento antes do primeiro teste.`
@@ -1499,7 +1561,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, categoryFilter: '', availableCategories: [], pendingRegistration: null });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, categoryFilter: '', availableCategories: [], pendingRegistration: null, savedMapping: {}, mappingSavedAt: 0 });
     chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
@@ -1512,17 +1574,22 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const file = event.target.files?.[0]; if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      state.mapping = data.mapping || {}; state.delay = Math.max(MIN_DELAY, Number(data.delay) || state.delay);
-      saveState(); renderMapping(); updateAthleteCard(); alert('Mapeamento importado.');
+      state.mapping = data.mapping || {}; state.savedMapping = { ...state.mapping }; state.mappingSavedAt = Date.now(); state.delay = Math.max(MIN_DELAY, Number(data.delay) || state.delay);
+      await saveState(); renderMapping(); updateAthleteCard(); updateMappingSaveStatus(); alert('Mapeamento importado e salvo.');
     } catch { alert('Arquivo de mapeamento inválido.'); }
     event.target.value = '';
   }
 
   async function init() {
     await loadState();
-    await finalizePendingRegistrationIfPossible();
+    const finalized = await finalizePendingRegistrationIfPossible();
     const form = document.getElementById(FORM_ID);
-    if (!form) return;
+    if (!form) {
+      if (finalized && location.href !== BIGMIDIA_ATHLETE_CREATE_URL) {
+        location.replace(BIGMIDIA_ATHLETE_CREATE_URL);
+      }
+      return;
+    }
     state.delay = Math.max(MIN_DELAY, Number(state.delay) || DEFAULT_DELAY);
     state.fields = discoverFields();
     if (state.headers.length) {
@@ -1531,7 +1598,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       state.rows = enriched.rows;
       autoMap();
     }
-    buildUi(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo();
+    buildUi(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo(); updateMappingSaveStatus();
     const saveButton = document.getElementById('save-Atleta');
     if (saveButton) saveButton.addEventListener('click', rememberPendingRegistration, true);
     form.addEventListener('submit', rememberPendingRegistration, true);
