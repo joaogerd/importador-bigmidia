@@ -2,6 +2,15 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.5
+- Adiciona o botão **Salvar mapeamento** na aba Mapeamento.
+- O mapeamento confirmado fica persistido explicitamente no `chrome.storage.local` e tem prioridade sobre as sugestões do automapeamento nas próximas páginas/sessões.
+- Exibe confirmação visual com o horário em que o mapeamento foi salvo.
+- O content script passa a acompanhar todo o domínio `ligapaulistafutsal.bigmidia.com` para completar o fluxo depois do botão final **Cadastrar**.
+- Quando o BigMidia retorna para a tela inicial após um cadastro, a extensão confirma o status, avança para o próximo atleta e volta automaticamente para `/atleta/create`.
+- O próximo atleta fica selecionado, mas o preenchimento continua manual.
+- O popup da extensão ganha o botão **Abrir cadastro de atleta**.
+
 ## 1.4.4
 - Corrige o mapeamento do campo **Tipo Logradouro** para impedir que ele receba o conteúdo completo da coluna `Logradouro`.
 - Remove automaticamente mapeamentos antigos incorretos de Tipo Logradouro salvos no Chrome.
