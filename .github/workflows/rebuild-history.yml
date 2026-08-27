@@ -1,0 +1,207 @@
+name: Rebuild source history and releases
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rebuild-history.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      ARCHIVE_BRANCH: archive/zip-imports-2026-08-27
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch archived ZIP imports
+        run: |
+          git fetch origin "${ARCHIVE_BRANCH}:refs/remotes/origin/${ARCHIVE_BRANCH}"
+          rm -rf /tmp/archive
+          git worktree add --detach /tmp/archive "origin/${ARCHIVE_BRANCH}"
+
+      - name: Rebuild canonical source history
+        id: rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Only ZIPs that were actually produced/used as extension packages are authoritative.
+          # The manifest version is validated before every commit.
+          declare -a RELEASES=(
+            "1.0.0|versions/importador-yoka-liga.zip"
+            "1.1.0|versions/importador-yoka-liga_v1.1.zip"
+            "1.2.0|versions/importador-yoka-liga-v1.2.zip"
+            "1.3.0|versions/importador-yoka-liga-v1.3.zip"
+            "1.4.0|versions/importador-yoka-liga-v1.4.zip"
+            "1.4.1|versions/importador-yoka-liga-v1.4.1.zip"
+            "1.4.2|versions/importador-yoka-liga-v1.4.2.zip"
+            "1.4.3|versions/importador-yoka-liga-v1.4.3.zip"
+            "1.4.4|versions/importador-yoka-liga-v1.4.4.zip"
+            "1.4.5|versions/importador-yoka-liga-v1.4.5.zip"
+            "1.4.6|versions/importador-yoka-liga-v1.4.6.zip"
+            "1.4.7|versions/importador-yoka-liga-v1.4.7.zip"
+          )
+
+          rm -rf /tmp/source-history /tmp/assets /tmp/extract
+          mkdir -p /tmp/source-history /tmp/assets
+          cd /tmp/source-history
+          git init -b source-history
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          : > /tmp/release-shas.txt
+          : > /tmp/missing-versions.txt
+
+          first=1
+          for item in "${RELEASES[@]}"; do
+            version="${item%%|*}"
+            relative_zip="${item#*|}"
+            zip_path="/tmp/archive/${relative_zip}"
+
+            if [[ ! -f "$zip_path" ]]; then
+              echo "::warning title=Versão ausente::v${version}: ${relative_zip} não está na branch de arquivo"
+              echo "$version|$relative_zip" >> /tmp/missing-versions.txt
+              continue
+            fi
+
+            rm -rf /tmp/extract
+            mkdir -p /tmp/extract
+            unzip -q "$zip_path" -d /tmp/extract
+
+            manifest="$(find /tmp/extract -type f -name manifest.json -print -quit)"
+            if [[ -z "$manifest" ]]; then
+              echo "Pacote v${version} sem manifest.json: $relative_zip" >&2
+              exit 1
+            fi
+            source_dir="$(dirname "$manifest")"
+
+            actual_version="$(python - "$manifest" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding='utf-8') as f:
+    print(json.load(f)['version'])
+PY
+)"
+            if [[ "$actual_version" != "$version" ]]; then
+              echo "Versão incorreta: $relative_zip diz $actual_version; esperado $version" >&2
+              exit 1
+            fi
+
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            cp -a "$source_dir"/. .
+            printf '%s\n' "$version" > VERSION
+
+            # Keep releases free of local artifacts/secrets.
+            rm -f .clasp.json *.log 2>/dev/null || true
+
+            git add -A
+            git commit -m "release: v${version}"
+            sha="$(git rev-parse HEAD)"
+            git tag -f "v${version}" "$sha"
+            echo "${version}|${sha}" >> /tmp/release-shas.txt
+
+            # Release asset: installable Chrome extension, with files at ZIP root.
+            (cd "$source_dir" && zip -q -r "/tmp/assets/importador-bigmidia-v${version}.zip" .)
+          done
+
+          if [[ ! -s /tmp/release-shas.txt ]]; then
+            echo "Nenhuma versão pôde ser reconstruída." >&2
+            exit 1
+          fi
+
+          git push --force origin HEAD:refs/heads/source-history
+          git push --force origin 'refs/tags/v*'
+
+          latest_version="$(tail -n 1 /tmp/release-shas.txt | cut -d'|' -f1)"
+          echo "latest_version=${latest_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS='|' read -r version sha; do
+            tag="v${version}"
+            asset="/tmp/assets/importador-bigmidia-v${version}.zip"
+            notes="Release reconstruído a partir do pacote original validado pelo manifest.json. O código-fonte correspondente está no tag ${tag} e na branch source-history."
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release upload "$tag" "$asset" --clobber
+            else
+              gh release create "$tag" "$asset" \
+                --target "$sha" \
+                --title "Importador BigMidia ${tag}" \
+                --notes "$notes"
+            fi
+          done < /tmp/release-shas.txt
+
+      - name: Put latest extension source on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="${{ steps.rebuild.outputs.latest_version }}"
+          zip_path="/tmp/archive/versions/importador-yoka-liga-v${latest}.zip"
+          if [[ "$latest" == "1.0.0" ]]; then
+            zip_path="/tmp/archive/versions/importador-yoka-liga.zip"
+          elif [[ "$latest" == "1.1.0" ]]; then
+            zip_path="/tmp/archive/versions/importador-yoka-liga_v1.1.zip"
+          elif [[ "$latest" == "1.4.0" ]]; then
+            zip_path="/tmp/archive/versions/importador-yoka-liga-v1.4.zip"
+          fi
+
+          rm -rf /tmp/latest
+          mkdir -p /tmp/latest
+          unzip -q "$zip_path" -d /tmp/latest
+          manifest="$(find /tmp/latest -type f -name manifest.json -print -quit)"
+          source_dir="$(dirname "$manifest")"
+
+          # Remove binary-version storage from main. It remains preserved on ARCHIVE_BRANCH.
+          git rm -r --ignore-unmatch versions
+
+          # Replace extension runtime files at repository root.
+          rm -rf icons
+          rm -f manifest.json content.js background.js popup.html popup.js styles.css exemplo-atletas.csv EXTENSION_README.md
+          cp -a "$source_dir"/manifest.json .
+          cp -a "$source_dir"/content.js .
+          [[ -f "$source_dir/background.js" ]] && cp -a "$source_dir/background.js" . || true
+          [[ -f "$source_dir/popup.html" ]] && cp -a "$source_dir/popup.html" . || true
+          [[ -f "$source_dir/popup.js" ]] && cp -a "$source_dir/popup.js" . || true
+          [[ -f "$source_dir/styles.css" ]] && cp -a "$source_dir/styles.css" . || true
+          [[ -f "$source_dir/exemplo-atletas.csv" ]] && cp -a "$source_dir/exemplo-atletas.csv" . || true
+          [[ -d "$source_dir/icons" ]] && cp -a "$source_dir/icons" . || true
+          [[ -f "$source_dir/README.md" ]] && cp -a "$source_dir/README.md" EXTENSION_README.md || true
+          printf '%s\n' "$latest" > VERSION
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "main já está organizada."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: move v${latest} source to main [skip history]"
+            git push origin main
+          fi
+
+      - name: Report missing archived packages
+        if: always()
+        shell: bash
+        run: |
+          if [[ -s /tmp/missing-versions.txt ]]; then
+            echo '### Pacotes ainda ausentes na branch de arquivo' >> "$GITHUB_STEP_SUMMARY"
+            while IFS='|' read -r version path; do
+              echo "- v${version}: \`${path}\`" >> "$GITHUB_STEP_SUMMARY"
+            done < /tmp/missing-versions.txt
+          else
+            echo 'Todos os pacotes esperados foram encontrados e validados.' >> "$GITHUB_STEP_SUMMARY"
+          fi
