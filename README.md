@@ -4,7 +4,7 @@ Extensão Chrome do Yoka para auxiliar o cadastro de atletas na Liga Paulista / 
 
 ## Versão atual
 
-**v1.4.3**
+**v1.4.4**
 
 Página oficial de inclusão de atleta:
 
@@ -16,15 +16,21 @@ A extensão prepara os dados e documentos para conferência. O botão final **Ca
 
 Na versão atual, a extensão pode carregar os atletas diretamente do cadastro do Yoka no Google Sheets, através da API do Google Apps Script. O CSV continua disponível como contingência.
 
+A partir da v1.4.4, a API devolve dinamicamente todas as colunas existentes na aba `Atletas`, em vez de manter uma lista fechada. Assim, campos como `Nome ou apelido na camisa`, `Número da camisa`, `Tamanho da camisa` e futuras colunas passam a ficar disponíveis na extensão automaticamente.
+
 O backend dessa integração pertence ao projeto `cadastro-yoka`; este repositório contém somente a extensão Chrome.
 
 ## Cadastro por categoria
 
 A partir da v1.4.3, o painel possui o filtro **Cadastrar por categoria**. As categorias são descobertas dinamicamente a partir dos campos `Equipe atual` / `Categoria calculada` do Google Sheets. Ao selecionar uma categoria, a extensão mostra somente os atletas daquele grupo e a navegação Anterior/Próximo fica restrita a eles.
 
+## Endereço
+
+Na v1.4.4, o campo **Tipo Logradouro** deixou de participar do mapeamento fuzzy com a coluna `Logradouro`. Quando necessário, a extensão deriva somente o tipo do endereço, como `Rua`, `Avenida`, `Travessa` etc., evitando enviar o logradouro completo para esse campo.
+
 ## Versões preservadas
 
-Os pacotes originais recebidos durante o desenvolvimento ficam em `versions/`:
+Os pacotes de cada versão ficam em `versions/`:
 
 - v1.0.0
 - v1.1.0
@@ -34,6 +40,7 @@ Os pacotes originais recebidos durante o desenvolvimento ficam em `versions/`:
 - v1.4.1
 - v1.4.2
 - v1.4.3
+- v1.4.4
 
 Consulte `CHANGELOG.md` para a evolução funcional.
 
