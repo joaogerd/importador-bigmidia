@@ -9,7 +9,9 @@
     headers: [], rows: [], mapping: {}, currentIndex: 0,
     completed: {}, delay: DEFAULT_DELAY, running: false, abort: false,
     fields: [], filter: '', logoDataUrl: '',
-    documentRunning: false, documentStatus: {}
+    documentRunning: false, documentStatus: {},
+    apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {},
+    pendingRegistration: null
   };
 
   const SPECIAL = {
@@ -444,6 +446,185 @@
 
   function currentRow() { return state.rows[state.currentIndex] || null; }
 
+
+  function currentAthleteId() {
+    return getHeaderValue(currentRow(), ['ID', 'ID do atleta']);
+  }
+
+  function currentServerStatus() {
+    const id = currentAthleteId();
+    return id ? (state.serverStatuses[id] || '') : '';
+  }
+
+  function apiRequest(action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({
+        type: 'ykl-api-request',
+        apiUrl: state.apiUrl,
+        token: state.apiToken,
+        action,
+        payload
+      }, response => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (!response?.ok) {
+          reject(new Error(response?.error || 'Falha na comunicação com o Yoka.'));
+          return;
+        }
+        resolve(response.data);
+      });
+    });
+  }
+
+  function documentSyncStatus(key) {
+    const custom = state.documentStatus[key];
+    if (custom?.kind === 'success') return 'Incluído';
+    if (custom?.kind === 'error') return 'Erro';
+    return normalizeExternalUrl(currentDocuments()[key]) ? 'Pendente' : 'Não disponível';
+  }
+
+  async function syncCurrentStatus(status, extra = {}) {
+    const id = currentAthleteId();
+    if (!id || !state.apiUrl || !state.apiToken) return;
+    const row = currentRow();
+    const payload = {
+      athleteId: id,
+      status,
+      rg: documentSyncStatus('rg'),
+      atestado: documentSyncStatus('atestado'),
+      autorizacao: documentSyncStatus('autorizacao'),
+      bigmidiaUrl: extra.bigmidiaUrl || '',
+      bigmidiaId: extra.bigmidiaId || '',
+      observation: extra.observation || '',
+      athleteName: displayName(row)
+    };
+    await apiRequest('updateStatus', payload);
+    state.serverStatuses[id] = status;
+    if (status === 'Cadastrado') state.completed[state.currentIndex] = true;
+    saveState();
+    updateAthleteCard();
+  }
+
+  async function loadAthletesFromSheets() {
+    const urlInput = $('#ykl-api-url');
+    const tokenInput = $('#ykl-api-token');
+    state.apiUrl = String(urlInput?.value || state.apiUrl || '').trim();
+    state.apiToken = String(tokenInput?.value || state.apiToken || '').trim();
+    saveState();
+    updateConnectionStatus('working', 'Conectando ao Google Sheets...');
+    try {
+      const data = await apiRequest('listAthletes', {});
+      const athletes = Array.isArray(data.athletes) ? data.athletes : [];
+      if (!athletes.length) throw new Error('Nenhum atleta foi retornado pela planilha.');
+      const headers = Array.isArray(data.headers) && data.headers.length
+        ? data.headers
+        : Object.keys(athletes[0] || {});
+      const enriched = addDerivedResponsibleColumns(headers, athletes);
+      state.headers = enriched.headers;
+      state.rows = enriched.rows;
+      state.currentIndex = 0;
+      state.dataSource = 'sheets';
+      state.serverStatuses = data.statuses || {};
+      state.completed = {};
+      state.documentStatus = {};
+      state.rows.forEach((row, index) => {
+        const idHeader = findHeader(state.headers, ['ID', 'ID do atleta']);
+        const id = idHeader ? String(row[idHeader] || '').trim() : '';
+        if (id && state.serverStatuses[id] === 'Cadastrado') state.completed[index] = true;
+      });
+      state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
+      autoMap();
+      saveState();
+      renderMapping();
+      updateAthleteCard();
+      updateControls();
+      updateConnectionStatus('ok', `${state.rows.length} atletas carregados do Google Sheets.`);
+      switchTab('cadastro');
+      log(`✓ ${state.rows.length} atletas carregados diretamente do Google Sheets.`);
+    } catch (error) {
+      updateConnectionStatus('error', error.message);
+      alert(error.message);
+    }
+  }
+
+  async function testApiConnection() {
+    state.apiUrl = String($('#ykl-api-url')?.value || state.apiUrl || '').trim();
+    state.apiToken = String($('#ykl-api-token')?.value || state.apiToken || '').trim();
+    saveState();
+    updateConnectionStatus('working', 'Testando conexão...');
+    try {
+      await apiRequest('ping', {});
+      updateConnectionStatus('ok', 'Conexão com o Yoka OK.');
+    } catch (error) {
+      updateConnectionStatus('error', error.message);
+    }
+  }
+
+  function updateConnectionStatus(kind = '', text = '') {
+    const dot = $('#ykl-api-dot');
+    const label = $('#ykl-api-status');
+    if (!dot || !label) return;
+    dot.className = `ykl-dot ${kind === 'ok' ? 'ykl-ok' : kind === 'error' ? 'ykl-error' : ''}`;
+    label.textContent = text || (state.apiUrl && state.apiToken ? 'Configuração salva.' : 'API ainda não configurada.');
+  }
+
+  function extractBigMidiaId(url = location.href) {
+    const match = String(url).match(/\/atleta\/(?:view|update|edit)\/(\d+)/i) || String(url).match(/[?&]id=(\d+)/i);
+    return match ? match[1] : '';
+  }
+
+  function rememberPendingRegistration() {
+    if (state.dataSource !== 'sheets' || !currentAthleteId()) return;
+    state.pendingRegistration = {
+      athleteId: currentAthleteId(),
+      index: state.currentIndex,
+      submittedAt: Date.now(),
+      documents: {
+        rg: documentSyncStatus('rg'),
+        atestado: documentSyncStatus('atestado'),
+        autorizacao: documentSyncStatus('autorizacao')
+      }
+    };
+    saveState();
+  }
+
+  async function finalizePendingRegistrationIfPossible() {
+    const pending = state.pendingRegistration;
+    if (!pending || !state.apiUrl || !state.apiToken) return;
+    const age = Date.now() - Number(pending.submittedAt || 0);
+    if (age > 30 * 60 * 1000) {
+      state.pendingRegistration = null;
+      saveState();
+      return;
+    }
+
+    const onCreateForm = Boolean(document.getElementById(FORM_ID));
+    const successAlert = [...document.querySelectorAll('.alert-success, .alert.alert-success, [class*="success"]')]
+      .some(el => /cadastr|salv|sucesso/i.test(el.textContent || ''));
+    if (onCreateForm && !successAlert) return;
+
+    try {
+      await apiRequest('updateStatus', {
+        athleteId: pending.athleteId,
+        status: 'Cadastrado',
+        rg: pending.documents?.rg || 'Pendente',
+        atestado: pending.documents?.atestado || 'Pendente',
+        autorizacao: pending.documents?.autorizacao || 'Pendente',
+        bigmidiaUrl: location.href,
+        bigmidiaId: extractBigMidiaId(location.href),
+        observation: 'Cadastro confirmado automaticamente após o envio do formulário do BigMidia.'
+      });
+      state.serverStatuses[pending.athleteId] = 'Cadastrado';
+      if (Number.isInteger(pending.index)) state.completed[pending.index] = true;
+      state.pendingRegistration = null;
+      saveState();
+    } catch (error) {
+      console.warn('[Importador Yoka] Não foi possível confirmar o cadastro no Sheets:', error);
+    }
+  }
+
   function orderedFields(predicate) {
     const form = document.getElementById(FORM_ID);
     return state.fields
@@ -465,7 +646,7 @@
   async function fillAthlete() {
     if (state.running) return;
     const row = currentRow();
-    if (!row) return alert('Importe um CSV e selecione um atleta.');
+    if (!row) return alert('Carregue os atletas do Google Sheets ou importe um CSV e selecione um atleta.');
     const cpf = getMappedValue(row, SPECIAL.athleteCpf);
     const birth = getMappedValue(row, SPECIAL.athleteBirthDisplay);
     if (!cpf || !birth) return alert('Mapeie as colunas de CPF e data de nascimento do atleta.');
@@ -527,6 +708,10 @@
         }
       }
       setProgress(100);
+      if (state.dataSource === 'sheets') {
+        try { await syncCurrentStatus('Em preenchimento'); }
+        catch (syncError) { log(`⚠ Planilha: ${syncError.message}`); }
+      }
       log('✅ Preenchimento concluído. Confira os dados e clique manualmente em Cadastrar.');
       alert('Preenchimento concluído. Confira os dados e use “Incluir todos os documentos” no painel. O botão Cadastrar permanece manual.');
     } catch (error) {
@@ -949,7 +1134,9 @@
   function saveState() {
     chrome.storage.local.set({ [STORAGE_KEY]: {
       headers: state.headers, rows: state.rows, mapping: state.mapping,
-      currentIndex: state.currentIndex, completed: state.completed, delay: state.delay, logoDataUrl: state.logoDataUrl
+      currentIndex: state.currentIndex, completed: state.completed, delay: state.delay, logoDataUrl: state.logoDataUrl,
+      apiUrl: state.apiUrl, apiToken: state.apiToken, dataSource: state.dataSource,
+      serverStatuses: state.serverStatuses, pendingRegistration: state.pendingRegistration
     }});
   }
 
@@ -973,13 +1160,14 @@
 
   function updateAthleteCard() {
     const row = currentRow();
-    $('#ykl-athlete-name').textContent = row ? displayName(row) : 'Nenhum CSV carregado';
+    $('#ykl-athlete-name').textContent = row ? displayName(row) : 'Nenhum atleta carregado';
     $('#ykl-counter').textContent = state.rows.length ? `${state.currentIndex + 1} de ${state.rows.length}` : '0 de 0';
     const status = $('#ykl-status');
-    const done = Boolean(state.completed[state.currentIndex]);
-    status.textContent = done ? 'Cadastrado' : 'Pendente';
+    const serverStatus = currentServerStatus();
+    const done = Boolean(state.completed[state.currentIndex]) || serverStatus === 'Cadastrado';
+    status.textContent = done ? 'Cadastrado' : (serverStatus || 'Pendente');
     status.className = `ykl-badge ${done ? 'ykl-success-badge' : ''}`;
-    $('#ykl-map-count').textContent = `${mappedCount()} campos mapeados`;
+    $('#ykl-map-count').textContent = `${mappedCount()} campos mapeados · ${state.dataSource === 'sheets' ? 'Google Sheets' : 'CSV'}`;
     $('#ykl-delay').value = state.delay;
     updateDocumentCard();
   }
@@ -1068,7 +1256,7 @@
           <button id="ykl-fill" class="ykl-btn ykl-primary ykl-full">Preencher atleta</button>
           <div class="ykl-row">
             <button id="ykl-abort" class="ykl-btn ykl-danger ykl-grow" disabled>Interromper</button>
-            <button id="ykl-done-next" class="ykl-btn ykl-blue ykl-grow">Marcar pronto e próximo</button>
+            <button id="ykl-done-next" class="ykl-btn ykl-blue ykl-grow">Registrar cadastrado e próximo</button>
           </div>
           <div class="ykl-row">
             <button id="ykl-prev" class="ykl-btn ykl-grow">← Anterior</button>
@@ -1084,9 +1272,18 @@
         </section>
         <section class="ykl-section" data-section="dados">
           <div class="ykl-card">
-            <label class="ykl-label" for="ykl-file">Importar CSV</label>
+            <h3>Google Sheets do Yoka</h3>
+            <label class="ykl-label" for="ykl-api-url">URL da API (Apps Script)</label>
+            <input id="ykl-api-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
+            <label class="ykl-label" for="ykl-api-token" style="margin-top:7px">Chave da API</label>
+            <input id="ykl-api-token" type="password" placeholder="Chave gerada no Apps Script">
+            <div class="ykl-row"><button id="ykl-api-test" class="ykl-btn ykl-grow" type="button">Testar conexão</button><button id="ykl-load-sheets" class="ykl-btn ykl-blue ykl-grow" type="button">Carregar atletas</button></div>
+            <div class="ykl-connection"><span id="ykl-api-dot" class="ykl-dot"></span><span id="ykl-api-status">API ainda não configurada.</span></div>
+          </div>
+          <div class="ykl-card">
+            <label class="ykl-label" for="ykl-file">CSV (modo de contingência)</label>
             <input id="ykl-file" type="file" accept=".csv,text/csv,text/plain">
-            <div class="ykl-muted">Aceita CSV separado por vírgula, ponto e vírgula ou tabulação.</div>
+            <div class="ykl-muted">Use o CSV somente se a integração com o Google Sheets estiver indisponível.</div>
           </div>
           <div class="ykl-card">
             <label class="ykl-label" for="ykl-logo-file">Logo do Yoka</label>
@@ -1098,7 +1295,7 @@
           <div class="ykl-row"><button id="ykl-export-map" class="ykl-btn ykl-grow">Exportar mapeamento</button><button id="ykl-import-map" class="ykl-btn ykl-grow">Importar mapeamento</button></div>
           <input id="ykl-map-file" class="ykl-hidden" type="file" accept=".json,application/json">
           <button id="ykl-clear" class="ykl-btn ykl-danger ykl-full">Apagar dados locais</button>
-          <div class="ykl-note" style="margin-top:9px">Os dados ficam somente no armazenamento local desta instalação do Chrome. Não são enviados pela extensão para nenhum servidor.</div>
+          <div class="ykl-note" style="margin-top:9px">A configuração da API e a cópia de trabalho dos atletas ficam neste Chrome. Quando conectado ao Sheets, a extensão envia apenas atualizações de status para o Apps Script do Yoka.</div>
         </section>
       </div>`;
     document.body.appendChild(root);
@@ -1106,11 +1303,27 @@
     $('#ykl-toggle').addEventListener('click', () => { root.classList.toggle('ykl-collapsed'); $('#ykl-toggle').textContent = root.classList.contains('ykl-collapsed') ? '+' : '−'; });
     $$('.ykl-tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
     $('#ykl-file').addEventListener('change', handleCsvFile);
+    $('#ykl-api-url').value = state.apiUrl || '';
+    $('#ykl-api-token').value = state.apiToken || '';
+    $('#ykl-api-url').addEventListener('change', e => { state.apiUrl = e.target.value.trim(); saveState(); updateConnectionStatus(); });
+    $('#ykl-api-token').addEventListener('change', e => { state.apiToken = e.target.value.trim(); saveState(); updateConnectionStatus(); });
+    $('#ykl-api-test').addEventListener('click', testApiConnection);
+    $('#ykl-load-sheets').addEventListener('click', loadAthletesFromSheets);
     $('#ykl-fill').addEventListener('click', fillAthlete);
     $('#ykl-abort').addEventListener('click', () => { state.abort = true; log('Solicitação de interrupção enviada...'); });
     $('#ykl-prev').addEventListener('click', () => changeIndex(-1));
     $('#ykl-next').addEventListener('click', () => changeIndex(1));
-    $('#ykl-done-next').addEventListener('click', () => { if (!state.rows.length) return; state.completed[state.currentIndex] = true; if (state.currentIndex < state.rows.length - 1) state.currentIndex++; saveState(); updateAthleteCard(); updateControls(); setProgress(0); clearLog(); });
+    $('#ykl-done-next').addEventListener('click', async () => {
+      if (!state.rows.length) return;
+      if (state.dataSource === 'sheets') {
+        try { await syncCurrentStatus('Cadastrado', { bigmidiaUrl: location.href, bigmidiaId: extractBigMidiaId(location.href), observation: 'Confirmação manual pelo operador da extensão.' }); }
+        catch (error) { alert(`Não consegui registrar na planilha: ${error.message}`); return; }
+      } else {
+        state.completed[state.currentIndex] = true;
+      }
+      if (state.currentIndex < state.rows.length - 1) state.currentIndex++;
+      saveState(); updateAthleteCard(); updateControls(); setProgress(0); clearLog();
+    });
     $('#ykl-delay').addEventListener('change', e => { state.delay = Math.max(MIN_DELAY, Math.min(3000, Number(e.target.value) || DEFAULT_DELAY)); e.target.value = state.delay; saveState(); });
     $('#ykl-auto-map').addEventListener('click', () => { autoMap(); renderMapping(); updateAthleteCard(); saveState(); });
     $('#ykl-map-search').addEventListener('input', e => { state.filter = e.target.value; renderMapping(); });
@@ -1131,6 +1344,7 @@
     $('#ykl-export-map').addEventListener('click', exportMapping);
     $('#ykl-import-map').addEventListener('click', () => $('#ykl-map-file').click());
     $('#ykl-map-file').addEventListener('change', importMapping);
+    updateConnectionStatus();
   }
 
   function changeIndex(delta) {
@@ -1145,7 +1359,7 @@
     const parsedRaw = csvParse(text);
     if (!parsedRaw.headers.length || !parsedRaw.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
     const parsed = addDerivedResponsibleColumns(parsedRaw.headers, parsedRaw.rows);
-    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {};
+    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {}; state.dataSource = 'csv'; state.serverStatuses = {};
     state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
     autoMap(); saveState(); renderMapping(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
     const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
@@ -1156,7 +1370,7 @@
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {} });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, pendingRegistration: null });
     chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
@@ -1176,8 +1390,10 @@
   }
 
   async function init() {
-    if (!document.getElementById(FORM_ID)) return;
     await loadState();
+    await finalizePendingRegistrationIfPossible();
+    const form = document.getElementById(FORM_ID);
+    if (!form) return;
     state.delay = Math.max(MIN_DELAY, Number(state.delay) || DEFAULT_DELAY);
     state.fields = discoverFields();
     if (state.headers.length) {
@@ -1187,7 +1403,10 @@
       autoMap();
     }
     buildUi(); renderMapping(); updateAthleteCard(); updateControls(); updateLogo();
-    log('Extensão pronta. Importe o CSV ou use os dados já salvos.');
+    const saveButton = document.getElementById('save-Atleta');
+    if (saveButton) saveButton.addEventListener('click', rememberPendingRegistration, true);
+    form.addEventListener('submit', rememberPendingRegistration, true);
+    log('Extensão pronta. Carregue os atletas do Google Sheets ou use o CSV de contingência.');
   }
 
   init();

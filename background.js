@@ -182,3 +182,47 @@ function bytesToBase64(bytes) {
   }
   return btoa(binary);
 }
+
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== 'ykl-api-request') return;
+
+  callYokaApi(message)
+    .then(data => sendResponse({ ok: true, data }))
+    .catch(error => sendResponse({ ok: false, error: error?.message || 'Falha na comunicação com o Yoka.' }));
+
+  return true;
+});
+
+async function callYokaApi(message) {
+  const apiUrl = normalizeHttpUrl(message.apiUrl);
+  const token = String(message.token || '').trim();
+  const action = String(message.action || '').trim();
+
+  if (!apiUrl) throw new Error('URL da API do Yoka não configurada.');
+  if (!token) throw new Error('Chave da API do Yoka não configurada.');
+  if (!action) throw new Error('Ação da API não informada.');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    redirect: 'follow',
+    cache: 'no-store',
+    credentials: 'omit',
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify({
+      token,
+      action,
+      payload: message.payload || {}
+    })
+  });
+
+  if (!response.ok) throw new Error(`API Yoka respondeu HTTP ${response.status}.`);
+
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error('A API Yoka não devolveu JSON válido. Verifique a implantação do Apps Script.'); }
+
+  if (!data?.ok) throw new Error(data?.error || 'A API Yoka rejeitou a operação.');
+  return data;
+}

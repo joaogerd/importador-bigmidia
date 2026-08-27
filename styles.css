@@ -47,7 +47,7 @@
 .ykl-row > * { min-width: 0; }
 .ykl-grow { flex: 1 1 auto; }
 .ykl-label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #44515d; }
-#ykl-root input[type="file"], #ykl-root input[type="number"], #ykl-root input[type="search"], #ykl-root select {
+#ykl-root input[type="file"], #ykl-root input[type="number"], #ykl-root input[type="search"], #ykl-root input[type="text"], #ykl-root input[type="password"], #ykl-root select {
   width: 100%; border: 1px solid #bfc8d1; border-radius: 6px; padding: 7px 8px; background: #fff; font-size: 12px;
 }
 .ykl-btn {
@@ -102,3 +102,8 @@
 .ykl-doc-status.ykl-doc-error { color: #b42318; font-weight: 700; }
 .ykl-doc-row > div { flex-wrap: wrap; justify-content: flex-end; }
 .ykl-doc-row .ykl-btn { min-width: 48px; }
+
+.ykl-connection { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:11px; }
+.ykl-dot { width:8px; height:8px; border-radius:50%; background:#8a949d; flex:none; }
+.ykl-dot.ykl-ok { background:#147a42; }
+.ykl-dot.ykl-error { background:#b42318; }
