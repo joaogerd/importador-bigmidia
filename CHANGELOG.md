@@ -2,6 +2,15 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.6
+- Corrige a persistência do mapeamento manual entre páginas e cadastros.
+- Depois de **Salvar mapeamento** ou importar um JSON, o mapeamento passa a ser tratado como uma especificação completa e bloqueada.
+- Campos deixados em **— não preencher —** permanecem assim e não são remapeados automaticamente.
+- Impede que `autoMap()` sobrescreva o mapeamento salvo ao carregar atletas, trocar de página ou reinicializar a extensão.
+- Migra automaticamente mapeamentos salvos na v1.4.5: se houver `mappingSavedAt`, eles passam a ser considerados bloqueados.
+- O botão **Automapear** continua disponível como ação explícita; após usá-lo é necessário revisar e salvar novamente.
+- Exportações de mapeamento passam a usar formato versão 2 e registram a intenção de manter o mapeamento bloqueado.
+
 ## 1.4.5
 - Adiciona o botão **Salvar mapeamento** na aba Mapeamento.
 - O mapeamento confirmado fica persistido explicitamente no `chrome.storage.local` e tem prioridade sobre as sugestões do automapeamento nas próximas páginas/sessões.
