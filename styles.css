@@ -84,3 +84,16 @@
   #ykl-root { left: 8px; right: 8px; width: auto; top: 66px; }
   #ykl-root.ykl-collapsed { left: auto; width: 58px; }
 }
+.ykl-logo { overflow: hidden; }
+.ykl-logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.ykl-doc-card h3 { margin-bottom: 5px; }
+.ykl-doc-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid #edf0f2; }
+.ykl-doc-row:last-of-type { border-bottom: 0; }
+.ykl-doc-row > span { min-width: 0; }
+.ykl-doc-row strong { display: block; font-size: 12px; }
+.ykl-doc-row > div { display: flex; gap: 5px; flex: none; }
+.ykl-doc-row .ykl-btn { padding: 6px 8px; }
+.ykl-doc-status { display: block; color: #8a949d; font-size: 10px; margin-top: 1px; }
+.ykl-doc-status.ykl-doc-ok { color: #147a42; font-weight: 700; }
+.ykl-logo-preview { height: 82px; border: 1px dashed #bfc8d1; border-radius: 8px; display: grid; place-items: center; margin-bottom: 8px; background: #f8fafb; color: #7b8792; font-size: 11px; overflow: hidden; }
+.ykl-logo-preview img { max-width: 100%; max-height: 78px; object-fit: contain; }

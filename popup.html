@@ -5,15 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Importador Yoka</title>
   <style>
-    body { font-family: Arial, sans-serif; width: 300px; margin: 0; padding: 16px; color: #17212b; }
-    h1 { font-size: 17px; margin: 0 0 10px; }
+    body { font-family: Arial, sans-serif; width: 310px; margin: 0; padding: 16px; color: #17212b; }
+    header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .logo { width:44px; height:44px; border-radius:50%; background:#174a7e; color:white; display:grid; place-items:center; font-weight:800; overflow:hidden; flex:none; }
+    .logo img { width:100%; height:100%; object-fit:contain; background:white; }
+    h1 { font-size: 17px; margin: 0; }
     p { font-size: 13px; line-height: 1.45; margin: 8px 0; }
     code { background: #f1f3f5; padding: 2px 4px; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <h1>Importador Yoka</h1>
+  <header><div class="logo"><img id="popup-logo-img" alt="Logo do Yoka" hidden><span id="popup-logo-fallback">YK</span></div><h1>Importador Yoka</h1></header>
   <p>Abra a página <code>/atleta/create</code> da Liga Paulista. O painel aparecerá no lado direito.</p>
-  <p>O preenchimento é assistido. A extensão não clica em <strong>Cadastrar</strong>.</p>
+  <p>Use os atalhos do painel para abrir ou baixar RG, atestado e autorização do atleta atual.</p>
+  <p>A extensão não clica em <strong>Cadastrar</strong>.</p>
+  <script src="popup.js"></script>
 </body>
 </html>

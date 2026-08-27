@@ -1,6 +1,14 @@
-# Importador Yoka – Liga Paulista
+# Importador Yoka – Liga Paulista 1.2
 
 Extensão local do Chrome para preencher um atleta por vez no formulário da Liga Paulista usando o CSV exportado da planilha do Yoka.
+
+## Novidades da versão 1.2
+
+- remove o preenchimento de tamanho da camisa;
+- permite escolher o logo do Yoka para o painel;
+- reconhece `Link do RG`, `Link do atestado` e `Link da autorização`;
+- mostra, para o atleta atual, botões **Abrir** e **Baixar** para cada documento;
+- possui botão para ir diretamente à seção de documentação da Liga.
 
 ## Fluxo automatizado
 
@@ -11,7 +19,7 @@ Ao clicar em **Preencher atleta**, a extensão:
 3. aguarda o site preencher o nome;
 4. preenche lentamente os demais dados;
 5. seleciona o responsável principal entre mãe e pai;
-6. deixa foto, documentos, conferência e o botão **Cadastrar** sob controle do operador.
+6. deixa documentos, conferência e o botão **Cadastrar** sob controle do operador.
 
 A extensão não usa coordenadas da tela e não depende da resolução do computador.
 
@@ -30,9 +38,7 @@ Após substituir os arquivos de uma versão anterior, abra `chrome://extensions`
 
 ## Importar a planilha
 
-No Google Sheets, use:
-
-**Arquivo → Fazer download → Valores separados por vírgulas (.csv)**
+No Google Sheets, use **Arquivo → Fazer download → Valores separados por vírgulas (.csv)**.
 
 Na página da Liga:
 
@@ -44,9 +50,33 @@ Na página da Liga:
 
 O CSV pode usar vírgula, ponto e vírgula ou tabulação como separador.
 
-## Colunas reconhecidas diretamente
+## Logo do Yoka
 
-A versão 1.1 reconhece automaticamente os nomes usados na planilha do Yoka:
+Na aba **Dados**:
+
+1. localize **Logo do Yoka**;
+2. selecione uma imagem PNG, JPG, WEBP ou SVG de até 2 MB;
+3. o logo aparecerá no cabeçalho do painel e no popup da extensão.
+
+O logo fica salvo apenas no armazenamento local do Chrome. Para embutir o logo definitivamente no pacote, substitua os ícones e a arte da extensão por arquivos fornecidos pelo clube.
+
+## Documentos do Drive
+
+A extensão reconhece estas colunas exatamente:
+
+- `Link do RG`;
+- `Link do atestado`;
+- `Link da autorização`.
+
+Na aba **Cadastro**, cada documento mostra:
+
+- **Abrir**: abre a página normal do Drive;
+- **Baixar**: tenta abrir o endereço de download direto do Drive;
+- **Ir para a seção de documentos**: desloca a página até a documentação da Liga.
+
+O arquivo ainda precisa ser selecionado manualmente no modal **Adicionar documento**. Isso evita manipular o mecanismo de upload e o envio final da Liga. Se o Drive pedir login ou autorização, conclua o acesso na guia aberta.
+
+## Colunas reconhecidas diretamente
 
 | Coluna do CSV | Campo da Liga |
 |---|---|
@@ -63,7 +93,8 @@ A versão 1.1 reconhece automaticamente os nomes usados na planilha do Yoka:
 | Pé predominante | Lado dominante |
 | Equipe atual | Vínculo/clube |
 | CEP, Logradouro, Número do endereço, Complemento, Bairro, Cidade do endereço e Estado | Endereço do atleta |
-| Tamanho da camisa | Camiseta |
+
+O tamanho da camisa não é mapeado nem preenchido.
 
 ## Responsável principal
 
@@ -74,29 +105,9 @@ A planilha possui os dados da mãe e do pai em colunas separadas. A extensão cr
 - `Gerado: telefone do responsável principal`;
 - `Gerado: parentesco do responsável principal`.
 
-A coluna **Responsável principal** pode conter:
-
-- `Mãe`;
-- `Pai`;
-- o nome completo da mãe;
-- o nome completo do pai.
+A coluna **Responsável principal** pode conter `Mãe`, `Pai`, o nome completo da mãe ou o nome completo do pai.
 
 Como o CSV atual não contém a data de nascimento dos pais, a extensão não executa a consulta RFB do responsável. Ela preenche nome, CPF, telefone e parentesco diretamente. A consulta RFB do atleta continua automática.
-
-## Colunas mantidas apenas na planilha
-
-Estas informações não possuem um campo direto e seguro no formulário analisado ou exigem upload manual:
-
-- ID e datas de controle;
-- Categoria calculada;
-- Número da camisa;
-- Origem;
-- Restrições/observações;
-- Número do RG;
-- links de RG, atestado, autorização e foto;
-- datas de envio de documentos e foto.
-
-Foto, RG, atestado e autorização continuam manuais porque o navegador não permite que uma extensão escolha arquivos locais automaticamente e os links da planilha não equivalem ao arquivo selecionado no formulário.
 
 ## Pausa entre campos
 
@@ -105,20 +116,12 @@ A pausa padrão é **750 ms**. Recomenda-se manter entre **700 e 900 ms**. O mí
 ## Depois do preenchimento
 
 1. confira todos os campos;
-2. anexe foto e documentos;
-3. clique em **Marcar pronto e próximo** no painel;
-4. clique manualmente em **Cadastrar** na Liga;
-5. ao abrir um novo cadastro, o próximo atleta estará selecionado.
-
-## Atualização e solução de problemas
-
-- Se o painel não aparecer, recarregue a página da Liga.
-- Depois de alterar ou substituir os arquivos da extensão, clique em **Recarregar** em `chrome://extensions`.
-- Se a RFB não encontrar o atleta, confira CPF e nascimento no CSV.
-- Se uma lista não selecionar posição, equipe ou pé dominante, abra **Mapeamento** e confirme a coluna correspondente.
-- Se **Responsável principal** estiver vazio ou diferente de mãe, pai ou nome de um deles, os dados do responsável poderão ficar em branco para evitar escolher a pessoa errada.
-- O botão **Cadastrar** nunca é acionado pela extensão.
+2. use os botões do painel para baixar RG, atestado e autorização;
+3. clique em **Ir para a seção de documentos**;
+4. adicione cada documento e aguarde a confirmação do site;
+5. clique em **Marcar pronto e próximo** no painel;
+6. clique manualmente em **Cadastrar** na Liga.
 
 ## Privacidade
 
-O CSV, o mapeamento e o progresso ficam no armazenamento local da extensão neste Chrome. A extensão não possui servidor próprio.
+O CSV, o mapeamento, o progresso e o logo ficam no armazenamento local desta instalação do Chrome. A extensão não possui servidor próprio.

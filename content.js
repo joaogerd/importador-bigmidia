@@ -8,7 +8,7 @@
   const state = {
     headers: [], rows: [], mapping: {}, currentIndex: 0,
     completed: {}, delay: DEFAULT_DELAY, running: false, abort: false,
-    fields: [], filter: ''
+    fields: [], filter: '', logoDataUrl: ''
   };
 
   const SPECIAL = {
@@ -66,11 +66,7 @@
     'atletadadosmedicos-plano_saude': ['plano de saude','plano de saúde','plano saude','plano saúde'],
     'atletadadosmedicos-carteira_sus': ['cartao sus','cartão sus','carteira sus','sus'],
     'atletadadosmedicos-alergia_medicamento': ['alergia medicamento','alergia a medicamento','alergias'],
-    'atletadadosmedicos-doencas_conhecidas': ['doencas conhecidas','doenças conhecidas','doencas','doenças'],
-    'atletamedida-camiseta': ['camisa','camiseta','tamanho camisa','tamanho camiseta','camisa jogo'],
-    'atletamedida-short': ['short','shorts','bermuda jogo','tamanho short'],
-    'atletamedida-tenis': ['calcado','calçado','numero calcado','número calçado','tenis','tênis'],
-    'atletamedida-meias': ['meia','meias','tamanho meia','tamanho meias']
+    'atletadadosmedicos-doencas_conhecidas': ['doencas conhecidas','doenças conhecidas','doencas','doenças']
   };
 
 
@@ -94,7 +90,6 @@
     'atletaendereco-bairro': ['Bairro'],
     'atletaendereco-city': ['Cidade do endereço'],
     'atletaendereco-state': ['Estado'],
-    'atletamedida-camiseta': ['Tamanho da camisa'],
     'atletaresponsavel-nome_completo': ['Gerado: nome do responsável principal'],
     'atletaresponsavel-cpf': ['Gerado: CPF do responsável principal'],
     'atletaresponsavel-telefone_celular': ['Gerado: telefone do responsável principal'],
@@ -107,6 +102,12 @@
     cpf: 'Gerado: CPF do responsável principal',
     phone: 'Gerado: telefone do responsável principal',
     relation: 'Gerado: parentesco do responsável principal'
+  };
+
+  const DOCUMENT_HEADERS = {
+    rg: ['Link do RG'],
+    atestado: ['Link do atestado'],
+    autorizacao: ['Link da autorização', 'Link da autorizacao']
   };
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -241,6 +242,7 @@
         if (['hidden','file','submit','button','reset','password'].includes(type)) return false;
         if (excludedNames.has(el.name)) return false;
         if (!el.id || el.id.startsWith('mceu_') || el.id.startsWith('generalSearch')) return false;
+        if (el.id.startsWith('atletamedida-') || el.id === 'atleta-medidas') return false;
         return true;
       })
       .map(el => ({ id: el.id, label: getFieldLabel(el), group: fieldGroup(el.id), tag: el.tagName.toLowerCase(), type: el.type || '' }));
@@ -494,7 +496,7 @@
       await fillList(orderedFields(f => f.group === 'Responsável'), responsibleExcluded);
       setProgress(82);
 
-      await fillList(orderedFields(f => ['Dados médicos','Medidas e uniforme','Dados bancários'].includes(f.group)));
+      await fillList(orderedFields(f => ['Dados médicos','Dados bancários'].includes(f.group)));
       const club = document.getElementById('atletahistorico-id_estabelecimento');
       if (club && !club.value) {
         const choices = [...club.options].filter(o => o.value);
@@ -505,7 +507,7 @@
       }
       setProgress(100);
       log('✅ Preenchimento concluído. Confira os dados e clique manualmente em Cadastrar.');
-      alert('Preenchimento concluído. Confira os dados, anexe os documentos e clique manualmente em Cadastrar.');
+      alert('Preenchimento concluído. Confira os dados, use os links do painel para baixar os documentos e clique manualmente em Cadastrar.');
     } catch (error) {
       log(`❌ ${error.message}`);
       alert(error.message);
@@ -521,12 +523,121 @@
     return h ? row[h] : `Atleta ${state.currentIndex + 1}`;
   }
 
+
+  function getHeaderValue(row, candidates) {
+    const header = findHeader(state.headers, candidates);
+    return header ? String(row?.[header] ?? '').trim() : '';
+  }
+
+  function currentDocuments() {
+    const row = currentRow();
+    return {
+      rg: getHeaderValue(row, DOCUMENT_HEADERS.rg),
+      atestado: getHeaderValue(row, DOCUMENT_HEADERS.atestado),
+      autorizacao: getHeaderValue(row, DOCUMENT_HEADERS.autorizacao)
+    };
+  }
+
+  function normalizeExternalUrl(raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    try {
+      const url = new URL(value);
+      if (!/^https?:$/.test(url.protocol)) return '';
+      return url.href;
+    } catch {
+      return '';
+    }
+  }
+
+  function driveFileId(raw) {
+    const url = normalizeExternalUrl(raw);
+    if (!url) return '';
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/,
+      /[?&]id=([a-zA-Z0-9_-]+)/,
+      /\/d\/([a-zA-Z0-9_-]+)/
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return '';
+  }
+
+  function driveDownloadUrl(raw) {
+    const url = normalizeExternalUrl(raw);
+    if (!url) return '';
+    const id = driveFileId(url);
+    return id ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}` : url;
+  }
+
+  function openExternal(raw, download = false) {
+    const url = download ? driveDownloadUrl(raw) : normalizeExternalUrl(raw);
+    if (!url) return alert('Este atleta não possui um link válido para esse documento.');
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function updateDocumentCard() {
+    const docs = currentDocuments();
+    for (const key of Object.keys(DOCUMENT_HEADERS)) {
+      const has = Boolean(normalizeExternalUrl(docs[key]));
+      const status = $(`#ykl-doc-${key}-status`);
+      const open = $(`#ykl-doc-${key}-open`);
+      const download = $(`#ykl-doc-${key}-download`);
+      if (status) {
+        status.textContent = has ? 'Link disponível' : 'Sem link';
+        status.className = `ykl-doc-status ${has ? 'ykl-doc-ok' : ''}`;
+      }
+      if (open) open.disabled = !has;
+      if (download) download.disabled = !has;
+    }
+  }
+
+  function updateLogo() {
+    const img = $('#ykl-logo-img');
+    const fallback = $('#ykl-logo-fallback');
+    const preview = $('#ykl-logo-preview');
+    if (!img || !fallback) return;
+    const has = Boolean(state.logoDataUrl);
+    img.hidden = !has;
+    fallback.hidden = has;
+    if (has) img.src = state.logoDataUrl;
+    if (preview) {
+      preview.innerHTML = has
+        ? `<img src="${escapeAttr(state.logoDataUrl)}" alt="Logo do Yoka">`
+        : '<span>Nenhum logo selecionado</span>';
+    }
+  }
+
+  async function handleLogoFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return alert('Selecione uma imagem PNG, JPG, WEBP ou SVG.');
+    if (file.size > 2 * 1024 * 1024) return alert('Use um logo de até 2 MB.');
+    state.logoDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    saveState();
+    updateLogo();
+    event.target.value = '';
+  }
+
+  function removeLogo() {
+    state.logoDataUrl = '';
+    saveState();
+    updateLogo();
+  }
+
   function mappedCount() { return Object.values(state.mapping).filter(h => state.headers.includes(h)).length; }
 
   function saveState() {
     chrome.storage.local.set({ [STORAGE_KEY]: {
       headers: state.headers, rows: state.rows, mapping: state.mapping,
-      currentIndex: state.currentIndex, completed: state.completed, delay: state.delay
+      currentIndex: state.currentIndex, completed: state.completed, delay: state.delay, logoDataUrl: state.logoDataUrl
     }});
   }
 
@@ -558,6 +669,7 @@
     status.className = `ykl-badge ${done ? 'ykl-success-badge' : ''}`;
     $('#ykl-map-count').textContent = `${mappedCount()} campos mapeados`;
     $('#ykl-delay').value = state.delay;
+    updateDocumentCard();
   }
 
   function updateControls() {
@@ -610,7 +722,7 @@
     const root = document.createElement('div'); root.id = 'ykl-root';
     root.innerHTML = `
       <div class="ykl-header">
-        <div class="ykl-title"><div class="ykl-logo">YK</div><div class="ykl-title-text"><strong>Importador Yoka</strong><span>Liga Paulista · preenchimento assistido</span></div></div>
+        <div class="ykl-title"><div class="ykl-logo"><img id="ykl-logo-img" alt="Logo do Yoka" hidden><span id="ykl-logo-fallback">YK</span></div><div class="ykl-title-text"><strong>Importador Yoka</strong><span>Liga Paulista · preenchimento assistido</span></div></div>
         <button class="ykl-icon-btn" id="ykl-toggle" title="Recolher">−</button>
       </div>
       <div class="ykl-body">
@@ -624,6 +736,14 @@
             <div class="ykl-row"><span id="ykl-counter" class="ykl-muted">0 de 0</span><span id="ykl-status" class="ykl-badge">Pendente</span></div>
             <div id="ykl-athlete-name" class="ykl-athlete">Nenhum CSV carregado</div>
             <div id="ykl-map-count" class="ykl-muted">0 campos mapeados</div>
+          </div>
+          <div class="ykl-card ykl-doc-card">
+            <h3>Documentos no Drive</h3>
+            <div class="ykl-doc-row"><span><strong>RG</strong><small id="ykl-doc-rg-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-rg-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-rg-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
+            <div class="ykl-doc-row"><span><strong>Atestado</strong><small id="ykl-doc-atestado-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-atestado-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-atestado-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
+            <div class="ykl-doc-row"><span><strong>Autorização</strong><small id="ykl-doc-autorizacao-status" class="ykl-doc-status">Sem link</small></span><div><button id="ykl-doc-autorizacao-open" class="ykl-btn" type="button">Abrir</button><button id="ykl-doc-autorizacao-download" class="ykl-btn ykl-blue" type="button">Baixar</button></div></div>
+            <button id="ykl-go-docs" class="ykl-btn ykl-full" type="button">Ir para a seção de documentos</button>
+            <div class="ykl-muted" style="margin-top:6px">Baixe o arquivo e selecione-o manualmente em “Adicionar documento”.</div>
           </div>
           <div class="ykl-card">
             <label class="ykl-label" for="ykl-delay">Pausa por campo (milissegundos)</label>
@@ -653,6 +773,13 @@
             <input id="ykl-file" type="file" accept=".csv,text/csv,text/plain">
             <div class="ykl-muted">Aceita CSV separado por vírgula, ponto e vírgula ou tabulação.</div>
           </div>
+          <div class="ykl-card">
+            <label class="ykl-label" for="ykl-logo-file">Logo do Yoka</label>
+            <div id="ykl-logo-preview" class="ykl-logo-preview"><span>Nenhum logo selecionado</span></div>
+            <input id="ykl-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+            <button id="ykl-logo-remove" class="ykl-btn ykl-full" type="button" style="margin-top:7px">Remover logo</button>
+            <div class="ykl-muted" style="margin-top:5px">O logo fica salvo somente neste Chrome.</div>
+          </div>
           <div class="ykl-row"><button id="ykl-export-map" class="ykl-btn ykl-grow">Exportar mapeamento</button><button id="ykl-import-map" class="ykl-btn ykl-grow">Importar mapeamento</button></div>
           <input id="ykl-map-file" class="ykl-hidden" type="file" accept=".json,application/json">
           <button id="ykl-clear" class="ykl-btn ykl-danger ykl-full">Apagar dados locais</button>
@@ -672,6 +799,17 @@
     $('#ykl-delay').addEventListener('change', e => { state.delay = Math.max(MIN_DELAY, Math.min(3000, Number(e.target.value) || DEFAULT_DELAY)); e.target.value = state.delay; saveState(); });
     $('#ykl-auto-map').addEventListener('click', () => { autoMap(); renderMapping(); updateAthleteCard(); saveState(); });
     $('#ykl-map-search').addEventListener('input', e => { state.filter = e.target.value; renderMapping(); });
+    $('#ykl-logo-file').addEventListener('change', handleLogoFile);
+    $('#ykl-logo-remove').addEventListener('click', removeLogo);
+    for (const key of Object.keys(DOCUMENT_HEADERS)) {
+      $(`#ykl-doc-${key}-open`).addEventListener('click', () => openExternal(currentDocuments()[key], false));
+      $(`#ykl-doc-${key}-download`).addEventListener('click', () => openExternal(currentDocuments()[key], true));
+    }
+    $('#ykl-go-docs').addEventListener('click', () => {
+      const target = document.getElementById('portlet_doc');
+      if (!target) return alert('A seção de documentos não foi encontrada nesta página.');
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     $('#ykl-clear').addEventListener('click', clearLocalData);
     $('#ykl-export-map').addEventListener('click', exportMapping);
     $('#ykl-import-map').addEventListener('click', () => $('#ykl-map-file').click());
@@ -700,8 +838,8 @@
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY });
-    chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); updateAthleteCard(); updateControls(); clearLog(); setProgress(0); });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '' });
+    chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
   function exportMapping() {
@@ -730,7 +868,7 @@
       state.rows = enriched.rows;
       autoMap();
     }
-    buildUi(); renderMapping(); updateAthleteCard(); updateControls();
+    buildUi(); renderMapping(); updateAthleteCard(); updateControls(); updateLogo();
     log('Extensão pronta. Importe o CSV ou use os dados já salvos.');
   }
 
