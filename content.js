@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'yklStateV1';
+  const STORAGE_KEY = 'yklStateV2';
   const DEFAULT_DELAY = 750;
   const MIN_DELAY = 550;
   const FORM_ID = 'Atleta';
@@ -73,6 +73,42 @@
     'atletamedida-meias': ['meia','meias','tamanho meia','tamanho meias']
   };
 
+
+  const EXACT_HEADER_PRESET = {
+    'atletadocumento-numero': ['CPF do atleta'],
+    'atleta-data_nascimento-disp': ['Data de nascimento'],
+    'atleta-nome_completo': ['Nome completo do atleta'],
+    'atleta-telefone_celular': ['Telefone do atleta'],
+    'atleta-id_posicao': ['Posição'],
+    'atleta-nome_mae': ['Nome da mãe'],
+    'atleta-nome_pai': ['Nome do pai'],
+    'atleta-cidade_natu': ['Cidade de nascimento'],
+    'atleta-email': ['E-mail principal para contato'],
+    'atleta-nome_evento': ['Nome ou apelido na camisa'],
+    'atleta-lado_dominante': ['Pé predominante'],
+    'atletahistorico-id_estabelecimento': ['Equipe atual'],
+    'atletaendereco-endereco-cep': ['CEP'],
+    'atletaendereco-logradouro': ['Logradouro'],
+    'atletaendereco-numero': ['Número do endereço'],
+    'atletaendereco-complemento': ['Complemento'],
+    'atletaendereco-bairro': ['Bairro'],
+    'atletaendereco-city': ['Cidade do endereço'],
+    'atletaendereco-state': ['Estado'],
+    'atletamedida-camiseta': ['Tamanho da camisa'],
+    'atletaresponsavel-nome_completo': ['Gerado: nome do responsável principal'],
+    'atletaresponsavel-cpf': ['Gerado: CPF do responsável principal'],
+    'atletaresponsavel-telefone_celular': ['Gerado: telefone do responsável principal'],
+    'atletaresponsavel-parentesco': ['Gerado: parentesco do responsável principal'],
+    'atletaresponsavel-email': ['E-mail principal para contato']
+  };
+
+  const DERIVED_RESP_HEADERS = {
+    name: 'Gerado: nome do responsável principal',
+    cpf: 'Gerado: CPF do responsável principal',
+    phone: 'Gerado: telefone do responsável principal',
+    relation: 'Gerado: parentesco do responsável principal'
+  };
+
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -81,6 +117,68 @@
     return String(value ?? '')
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+
+  function findHeader(headers, candidates) {
+    const normalized = headers.map(h => ({ raw: h, n: normalize(h) }));
+    for (const candidate of candidates) {
+      const found = normalized.find(h => h.n === normalize(candidate));
+      if (found) return found.raw;
+    }
+    return '';
+  }
+
+  function addDerivedResponsibleColumns(headers, rows) {
+    const principalH = findHeader(headers, ['Responsável principal', 'Responsavel principal']);
+    const motherNameH = findHeader(headers, ['Nome da mãe', 'Nome da mae']);
+    const motherCpfH = findHeader(headers, ['CPF da mãe', 'CPF da mae']);
+    const motherPhoneH = findHeader(headers, ['Telefone/WhatsApp da mãe', 'Telefone WhatsApp da mãe', 'Telefone da mãe']);
+    const fatherNameH = findHeader(headers, ['Nome do pai']);
+    const fatherCpfH = findHeader(headers, ['CPF do pai']);
+    const fatherPhoneH = findHeader(headers, ['Telefone/WhatsApp do pai', 'Telefone WhatsApp do pai', 'Telefone do pai']);
+
+    if (!principalH && !motherNameH && !fatherNameH) return { headers, rows };
+
+    const outputHeaders = [...headers];
+    Object.values(DERIVED_RESP_HEADERS).forEach(h => {
+      if (!outputHeaders.includes(h)) outputHeaders.push(h);
+    });
+
+    const outputRows = rows.map(row => {
+      const principal = String(row[principalH] || '').trim();
+      const p = normalize(principal);
+      const motherName = String(row[motherNameH] || '').trim();
+      const fatherName = String(row[fatherNameH] || '').trim();
+      const motherN = normalize(motherName);
+      const fatherN = normalize(fatherName);
+      const motherMatch = motherName && (motherN === p || (p.length >= 4 && (motherN.includes(p) || p.includes(motherN))));
+      const fatherMatch = fatherName && (fatherN === p || (p.length >= 4 && (fatherN.includes(p) || p.includes(fatherN))));
+
+      let role = '';
+      if (/^mae$/.test(p) || p.includes('mae') || motherMatch) role = 'mae';
+      else if (/^pai$/.test(p) || p.includes('pai') || fatherMatch) role = 'pai';
+      else if (motherName && !fatherName) role = 'mae';
+      else if (fatherName && !motherName) role = 'pai';
+
+      const useMother = role === 'mae';
+      return {
+        ...row,
+        [DERIVED_RESP_HEADERS.name]: useMother ? motherName : fatherName,
+        [DERIVED_RESP_HEADERS.cpf]: String(row[useMother ? motherCpfH : fatherCpfH] || '').trim(),
+        [DERIVED_RESP_HEADERS.phone]: String(row[useMother ? motherPhoneH : fatherPhoneH] || '').trim(),
+        [DERIVED_RESP_HEADERS.relation]: useMother ? 'Mãe' : role === 'pai' ? 'Pai' : ''
+      };
+    });
+
+    return { headers: outputHeaders, rows: outputRows };
+  }
+
+  function applyExactPreset() {
+    for (const [fieldId, candidates] of Object.entries(EXACT_HEADER_PRESET)) {
+      const header = findHeader(state.headers, candidates);
+      if (header) state.mapping[fieldId] = header;
+    }
   }
 
   function csvParse(text) {
@@ -149,9 +247,13 @@
   }
 
   function autoMap() {
+    applyExactPreset();
     const normalizedHeaders = state.headers.map(h => ({ raw: h, n: normalize(h) }));
     for (const field of state.fields) {
       if (state.mapping[field.id] && state.headers.includes(state.mapping[field.id])) continue;
+      // Os dados do responsável são derivados de mãe/pai. Evita usar, por engano,
+      // a data de nascimento ou o endereço do atleta nos campos do responsável.
+      if (field.id.startsWith('atletaresponsavel-')) continue;
       const candidates = [field.label, field.id, field.id.replace(/^(atleta|atletaendereco|atletaresponsavel|atletadadosmedicos|atletamedida|atletabanco)-/, '').replace(/[_-]/g, ' '), ...(ALIASES[field.id] || [])].map(normalize);
       let found = normalizedHeaders.find(h => candidates.includes(h.n));
       if (!found) {
@@ -368,18 +470,28 @@
 
       const respCpf = getMappedValue(row, SPECIAL.responsibleCpf);
       const respBirth = getMappedValue(row, SPECIAL.responsibleBirthDisplay);
+      const respName = getMappedValue(row, SPECIAL.responsibleName);
+      if (!respName && (row['CPF da mãe'] || row['CPF do pai'])) {
+        log('⚠ Não consegui identificar o responsável principal. Confira a coluna “Responsável principal”.');
+      }
+      let responsibleConsulted = false;
       if (respCpf && respBirth) {
         await setDatePair(SPECIAL.responsibleBirthDisplay, SPECIAL.responsibleBirthHidden, respBirth);
         await setField(SPECIAL.responsibleCpf, respCpf, 'CPF do responsável');
         await clickAndWaitForValue(SPECIAL.responsibleRfbButton, SPECIAL.responsibleName, 'Consulta do responsável na RFB');
-      } else if (respCpf || respBirth) {
-        log('⚠ Para consultar o responsável na RFB, são necessários CPF e nascimento.');
+        responsibleConsulted = true;
+      } else if (respCpf) {
+        log('ℹ O CSV não possui nascimento do responsável; CPF, nome e telefone serão preenchidos sem consulta à RFB.');
       }
       await searchCep('atletaresponsavel', SPECIAL.responsibleMunicipio);
-      await fillList(orderedFields(f => f.group === 'Responsável'), new Set([
-        SPECIAL.responsibleCpf, SPECIAL.responsibleBirthDisplay, SPECIAL.responsibleName,
-        SPECIAL.responsibleCep, 'atletaresponsavel-municipio-descricao'
-      ]));
+      const responsibleExcluded = new Set([
+        SPECIAL.responsibleBirthDisplay, SPECIAL.responsibleCep, 'atletaresponsavel-municipio-descricao'
+      ]);
+      if (responsibleConsulted) {
+        responsibleExcluded.add(SPECIAL.responsibleCpf);
+        responsibleExcluded.add(SPECIAL.responsibleName);
+      }
+      await fillList(orderedFields(f => f.group === 'Responsável'), responsibleExcluded);
       setProgress(82);
 
       await fillList(orderedFields(f => ['Dados médicos','Medidas e uniforme','Dados bancários'].includes(f.group)));
@@ -405,7 +517,7 @@
   function displayName(row) {
     const mapped = getMappedValue(row, SPECIAL.athleteName);
     if (mapped) return mapped;
-    const h = state.headers.find(x => ['nome','nome completo','nome do atleta','atleta'].includes(normalize(x)));
+    const h = findHeader(state.headers, ['Nome completo do atleta', 'Nome do atleta', 'Nome completo', 'Nome']);
     return h ? row[h] : `Atleta ${state.currentIndex + 1}`;
   }
 
@@ -574,12 +686,16 @@
   async function handleCsvFile(event) {
     const file = event.target.files?.[0]; if (!file) return;
     const text = await file.text();
-    const parsed = csvParse(text);
-    if (!parsed.headers.length || !parsed.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
+    const parsedRaw = csvParse(text);
+    if (!parsedRaw.headers.length || !parsedRaw.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
+    const parsed = addDerivedResponsibleColumns(parsedRaw.headers, parsedRaw.rows);
     state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {};
     state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
     autoMap(); saveState(); renderMapping(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
-    alert(`${state.rows.length} atletas importados. Confira o mapeamento das colunas antes de preencher.`);
+    const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
+    alert(modeloYoka
+      ? `${state.rows.length} atletas importados. O modelo de colunas do Yoka foi reconhecido e mapeado automaticamente. Confira o mapeamento antes do primeiro teste.`
+      : `${state.rows.length} atletas importados. Confira o mapeamento das colunas antes de preencher.`);
   }
 
   function clearLocalData() {
@@ -608,7 +724,12 @@
     await loadState();
     state.delay = Math.max(MIN_DELAY, Number(state.delay) || DEFAULT_DELAY);
     state.fields = discoverFields();
-    if (state.headers.length) autoMap();
+    if (state.headers.length) {
+      const enriched = addDerivedResponsibleColumns(state.headers, state.rows);
+      state.headers = enriched.headers;
+      state.rows = enriched.rows;
+      autoMap();
+    }
     buildUi(); renderMapping(); updateAthleteCard(); updateControls();
     log('Extensão pronta. Importe o CSV ou use os dados já salvos.');
   }

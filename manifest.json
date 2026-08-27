@@ -1,15 +1,25 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.0.0",
-  "description": "Preenchimento assistido do cadastro de atletas da Liga Paulista a partir de CSV, com consulta à RFB e salvamento manual.",
-  "permissions": ["storage"],
-  "host_permissions": ["https://ligapaulistafutsal.bigmidia.com/*"],
+  "version": "1.1.0",
+  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do CSV do Yoka, com RFB do atleta, responsável principal e salvamento manual.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://ligapaulistafutsal.bigmidia.com/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://ligapaulistafutsal.bigmidia.com/atleta/create*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/atleta/create*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     }
   ],
