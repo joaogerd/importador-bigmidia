@@ -1,0 +1,157 @@
+name: Migrate versions to source history
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      ARCHIVE_BRANCH: archive/zip-imports-2026-08-27
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open archive branch
+        run: |
+          git fetch origin "${ARCHIVE_BRANCH}:refs/remotes/origin/${ARCHIVE_BRANCH}"
+          rm -rf /tmp/archive
+          git worktree add --detach /tmp/archive "origin/${ARCHIVE_BRANCH}"
+
+      - name: Build source-history, tags and release assets
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          releases=(
+            '1.0.0|versions/importador-yoka-liga.zip'
+            '1.1.0|versions/importador-yoka-liga_v1.1.zip'
+            '1.2.0|versions/importador-yoka-liga-v1.2.zip'
+            '1.3.0|versions/importador-yoka-liga-v1.3.zip'
+            '1.4.0|versions/importador-yoka-liga-v1.4.zip'
+            '1.4.1|versions/importador-yoka-liga-v1.4.1.zip'
+            '1.4.2|versions/importador-yoka-liga-v1.4.2.zip'
+            '1.4.3|versions/importador-yoka-liga-v1.4.3.zip'
+            '1.4.4|versions/importador-yoka-liga-v1.4.4.zip'
+            '1.4.5|versions/importador-yoka-liga-v1.4.5.zip'
+            '1.4.6|versions/importador-yoka-liga-v1.4.6.zip'
+            '1.4.7|versions/importador-yoka-liga-v1.4.7.zip'
+          )
+
+          rm -rf /tmp/history /tmp/unpack /tmp/release-assets
+          mkdir -p /tmp/history /tmp/release-assets
+          cd /tmp/history
+          git init -b source-history
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          : > /tmp/releases.txt
+          : > /tmp/missing.txt
+
+          for item in "${releases[@]}"; do
+            version="${item%%|*}"
+            rel="${item#*|}"
+            zip="/tmp/archive/${rel}"
+            if [[ ! -f "$zip" ]]; then
+              echo "$version|$rel" >> /tmp/missing.txt
+              echo "::warning::v${version} ausente: ${rel}"
+              continue
+            fi
+
+            rm -rf /tmp/unpack
+            mkdir -p /tmp/unpack
+            unzip -q "$zip" -d /tmp/unpack
+            manifest="$(find /tmp/unpack -type f -name manifest.json -print -quit)"
+            [[ -n "$manifest" ]] || { echo "manifest.json ausente em $rel" >&2; exit 1; }
+            src="$(dirname "$manifest")"
+            actual="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["version"])' "$manifest")"
+            [[ "$actual" == "$version" ]] || { echo "$rel: manifest=$actual esperado=$version" >&2; exit 1; }
+
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            cp -a "$src"/. .
+            printf '%s\n' "$version" > VERSION
+            git add -A
+            git commit -m "release: v${version}"
+            sha="$(git rev-parse HEAD)"
+            git tag -f "v${version}" "$sha"
+            echo "$version|$sha|$rel" >> /tmp/releases.txt
+            (cd "$src" && zip -q -r "/tmp/release-assets/importador-bigmidia-v${version}.zip" .)
+          done
+
+          [[ -s /tmp/releases.txt ]] || { echo 'Nenhuma versão reconstruída' >&2; exit 1; }
+          git push --force origin HEAD:refs/heads/source-history
+          git push --force origin --tags
+          latest="$(tail -n1 /tmp/releases.txt | cut -d'|' -f1)"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS='|' read -r version sha rel; do
+            tag="v${version}"
+            asset="/tmp/release-assets/importador-bigmidia-v${version}.zip"
+            notes="Código reconstruído e validado a partir de ${rel}. O manifest.json confirma a versão ${version}."
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release upload "$tag" "$asset" --clobber
+            else
+              gh release create "$tag" "$asset" --title "Importador BigMidia ${tag}" --notes "$notes"
+            fi
+          done < /tmp/releases.txt
+
+      - name: Replace ZIP storage on main with latest source
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="${{ steps.build.outputs.latest }}"
+          rel="$(awk -F'|' -v v="$latest" '$1==v {print $3}' /tmp/releases.txt)"
+          zip="/tmp/archive/${rel}"
+          rm -rf /tmp/latest
+          mkdir -p /tmp/latest
+          unzip -q "$zip" -d /tmp/latest
+          manifest="$(find /tmp/latest -type f -name manifest.json -print -quit)"
+          src="$(dirname "$manifest")"
+
+          git rm -r --ignore-unmatch versions
+          rm -rf icons
+          rm -f manifest.json content.js background.js popup.html popup.js styles.css exemplo-atletas.csv EXTENSION_README.md
+          cp -a "$src/manifest.json" .
+          cp -a "$src/content.js" .
+          [[ -f "$src/background.js" ]] && cp -a "$src/background.js" . || true
+          [[ -f "$src/popup.html" ]] && cp -a "$src/popup.html" . || true
+          [[ -f "$src/popup.js" ]] && cp -a "$src/popup.js" . || true
+          [[ -f "$src/styles.css" ]] && cp -a "$src/styles.css" . || true
+          [[ -f "$src/exemplo-atletas.csv" ]] && cp -a "$src/exemplo-atletas.csv" . || true
+          [[ -d "$src/icons" ]] && cp -a "$src/icons" . || true
+          [[ -f "$src/README.md" ]] && cp -a "$src/README.md" EXTENSION_README.md || true
+          printf '%s\n' "$latest" > VERSION
+
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: use v${latest} source on main"
+            git push origin main
+          fi
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo '## Migração do Importador BigMidia' >> "$GITHUB_STEP_SUMMARY"
+          if [[ -s /tmp/releases.txt ]]; then
+            echo '### Versões reconstruídas' >> "$GITHUB_STEP_SUMMARY"
+            cut -d'|' -f1 /tmp/releases.txt | sed 's/^/- v/' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -s /tmp/missing.txt ]]; then
+            echo '### Versões sem ZIP autoritativo no arquivo' >> "$GITHUB_STEP_SUMMARY"
+            while IFS='|' read -r version rel; do echo "- v${version}: ${rel}"; done < /tmp/missing.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
