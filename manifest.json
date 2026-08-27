@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.4.2",
-  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do Google Sheets do Yoka ou CSV, com RFB, documentos do Drive e sincronização do status do cadastro.",
+  "version": "1.4.4",
+  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do Google Sheets do Yoka ou CSV, com RFB, documentos do Drive e sincronização do status do cadastro e filtro dinâmico por categoria.",
   "permissions": [
     "storage"
   ],

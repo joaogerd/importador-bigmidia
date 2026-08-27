@@ -1,4 +1,4 @@
-# Importador Yoka — Liga Paulista v1.4.2
+# Importador Yoka — Liga Paulista v1.4.4
 
 Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atletas no BigMidia / Liga Paulista.
 
@@ -32,7 +32,7 @@ O backend fica no arquivo `src/BigMidiaApi.js` do repositório `cadastro-yoka`.
 No editor do Apps Script, execute uma vez:
 
 ```text
-configurarBigMidiaApi_()
+configurarBigMidiaApi()
 ```
 
 A função grava uma chave aleatória em `ScriptProperties` e imprime a chave no log. Depois atualize a implantação do aplicativo da Web.
@@ -40,7 +40,7 @@ A função grava uma chave aleatória em `ScriptProperties` e imprime a chave no
 A extensão precisa de:
 
 - URL da implantação terminada em `/exec`;
-- chave gerada por `configurarBigMidiaApi_()`.
+- chave gerada por `configurarBigMidiaApi()`.
 
 ## Segurança
 
@@ -70,3 +70,20 @@ Endereço oficial usado para inclusão de atleta:
 `https://ligapaulistafutsal.bigmidia.com/atleta/create`
 
 No envio dos documentos, o arquivo de autorização do responsável deve ser cadastrado no BigMidia com o tipo exato **Termo Responsável (Menor de 18)**.
+
+
+## Novidades da v1.4.4
+
+- filtro dinâmico **Cadastrar por categoria** no painel principal;
+- categorias são descobertas automaticamente a partir de `Equipe atual` / `Categoria calculada` da planilha;
+- ao selecionar uma categoria, a extensão recarrega o Google Sheets e mostra somente os atletas daquela categoria;
+- a categoria do atleta atual aparece logo abaixo do nome;
+- o filtro não exige alteração futura quando novas categorias forem criadas na planilha.
+
+
+## Correções da v1.4.4
+
+- Corrige o campo **Tipo Logradouro**: ele não recebe mais o logradouro completo; quando necessário, usa somente o tipo (Rua, Avenida, Travessa etc.).
+- Remove automaticamente mapeamentos antigos incorretos de Tipo Logradouro salvos no Chrome.
+- Mostra Nome na camisa, Número e Tamanho na ficha do atleta.
+- Compatível com a API atualizada que devolve todas as colunas da aba `Atletas`.

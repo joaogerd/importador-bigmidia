@@ -11,6 +11,7 @@
     fields: [], filter: '', logoDataUrl: '',
     documentRunning: false, documentStatus: {},
     apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {},
+    categoryFilter: '', availableCategories: [],
     pendingRegistration: null
   };
 
@@ -166,6 +167,37 @@
     return '';
   }
 
+  function athleteCategory(row, headers = state.headers) {
+    const teamHeader = findHeader(headers, ['Equipe atual', 'Equipe']);
+    const calculatedHeader = findHeader(headers, ['Categoria calculada', 'Categoria']);
+    return String((teamHeader && row[teamHeader]) || (calculatedHeader && row[calculatedHeader]) || '').trim();
+  }
+
+  function collectCategories(rows, headers = state.headers) {
+    return [...new Set(rows.map(row => athleteCategory(row, headers)).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+  }
+
+  function filterRowsByCategory(rows, category, headers = state.headers) {
+    const selected = String(category || '').trim();
+    if (!selected) return [...rows];
+    const wanted = normalize(selected);
+    return rows.filter(row => normalize(athleteCategory(row, headers)) === wanted);
+  }
+
+  function renderCategoryFilter() {
+    const select = $('#ykl-category-filter');
+    if (!select) return;
+    const categories = Array.isArray(state.availableCategories) ? state.availableCategories : [];
+    select.innerHTML = '<option value="">Todas as categorias</option>' + categories
+      .map(category => `<option value="${escapeAttr(category)}">${escapeHtml(category)}</option>`)
+      .join('');
+    select.value = categories.includes(state.categoryFilter) ? state.categoryFilter : '';
+    $('#ykl-category-summary').textContent = state.categoryFilter
+      ? `Exibindo somente ${state.categoryFilter}.`
+      : 'Exibindo atletas de todas as categorias.';
+  }
+
   function addDerivedResponsibleColumns(headers, rows) {
     const principalH = findHeader(headers, ['Responsável principal', 'Responsavel principal']);
     const motherNameH = findHeader(headers, ['Nome da mãe', 'Nome da mae']);
@@ -209,6 +241,47 @@
     });
 
     return { headers: outputHeaders, rows: outputRows };
+  }
+
+  function isStreetTypeField(field) {
+    const label = normalize(field?.label || '');
+    const id = normalize(field?.id || '').replace(/[_-]+/g, ' ');
+    return label.includes('tipo logradouro') || id.includes('tipo logradouro');
+  }
+
+  function deriveStreetType(row) {
+    const explicit = getHeaderValue(row, ['Tipo Logradouro', 'Tipo de Logradouro']);
+    if (explicit && explicit.length <= 50) return explicit;
+
+    const raw = getHeaderValue(row, ['Logradouro', 'Endereço completo', 'Endereco completo']);
+    if (!raw) return '';
+
+    const clean = String(raw).trim().replace(/^[,;\s]+/, '');
+    const types = [
+      'Avenida', 'Av.', 'Rua', 'R.', 'Travessa', 'Tv.', 'Alameda', 'Al.',
+      'Rodovia', 'Estrada', 'Praça', 'Praca', 'Largo', 'Viela', 'Servidão',
+      'Servidao', 'Passagem', 'Via', 'Acesso', 'Quadra', 'Condomínio', 'Condominio'
+    ];
+    const normalizedClean = normalize(clean);
+    const found = types.find(type => {
+      const n = normalize(type.replace(/\.$/, ''));
+      return normalizedClean === n || normalizedClean.startsWith(`${n} `);
+    });
+    if (!found) return '';
+    return found.replace(/\.$/, '');
+  }
+
+  async function fillStreetTypeIfNeeded(prefix) {
+    const row = currentRow();
+    const value = deriveStreetType(row);
+    if (!value) return;
+
+    const fields = state.fields.filter(field => field.id.startsWith(prefix) && isStreetTypeField(field));
+    for (const field of fields) {
+      const el = document.getElementById(field.id);
+      if (!el || String(el.value || '').trim()) continue;
+      await setField(field.id, value, field.label || 'Tipo Logradouro');
+    }
   }
 
   function applyExactPreset() {
@@ -288,6 +361,12 @@
     applyExactPreset();
     const normalizedHeaders = state.headers.map(h => ({ raw: h, n: normalize(h) }));
     for (const field of state.fields) {
+      // “Tipo Logradouro” não pode receber a coluna “Logradouro” completa.
+      // Remove inclusive mapeamentos antigos salvos no Chrome.
+      if (isStreetTypeField(field)) {
+        delete state.mapping[field.id];
+        continue;
+      }
       if (state.mapping[field.id] && state.headers.includes(state.mapping[field.id])) continue;
       // Os dados do responsável são derivados de mãe/pai. Evita usar, por engano,
       // a data de nascimento ou o endereço do atleta nos campos do responsável.
@@ -536,7 +615,12 @@
         : Object.keys(athletes[0] || {});
       const enriched = addDerivedResponsibleColumns(headers, athletes);
       state.headers = enriched.headers;
-      state.rows = enriched.rows;
+      state.availableCategories = collectCategories(enriched.rows, enriched.headers);
+      if (state.categoryFilter && !state.availableCategories.includes(state.categoryFilter)) {
+        state.categoryFilter = '';
+      }
+      state.rows = filterRowsByCategory(enriched.rows, state.categoryFilter, enriched.headers);
+      if (!state.rows.length) throw new Error(`Nenhum atleta encontrado na categoria ${state.categoryFilter || 'selecionada'}.`);
       state.currentIndex = 0;
       state.dataSource = 'sheets';
       state.serverStatuses = data.statuses || {};
@@ -553,9 +637,11 @@
       renderMapping();
       updateAthleteCard();
       updateControls();
-      updateConnectionStatus('ok', `${state.rows.length} atletas carregados do Google Sheets.`);
+      renderCategoryFilter();
+      const categoryText = state.categoryFilter ? ` da categoria ${state.categoryFilter}` : '';
+      updateConnectionStatus('ok', `${state.rows.length} atletas${categoryText} carregados do Google Sheets.`);
       switchTab('cadastro');
-      log(`✓ ${state.rows.length} atletas carregados diretamente do Google Sheets.`);
+      log(`✓ ${state.rows.length} atletas${categoryText} carregados diretamente do Google Sheets.`);
     } catch (error) {
       updateConnectionStatus('error', error.message);
       alert(error.message);
@@ -686,6 +772,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       setProgress(45);
 
       await searchCep('atletaendereco', SPECIAL.athleteMunicipio);
+      await fillStreetTypeIfNeeded('atletaendereco');
       await fillList(orderedFields(f => f.group === 'Endereço do atleta'), new Set([SPECIAL.athleteCep, 'atletaendereco-municipio-descricao']));
       setProgress(62);
 
@@ -705,6 +792,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         log('ℹ O CSV não possui nascimento do responsável; CPF, nome e telefone serão preenchidos sem consulta à RFB.');
       }
       await searchCep('atletaresponsavel', SPECIAL.responsibleMunicipio);
+      await fillStreetTypeIfNeeded('atletaresponsavel');
       const responsibleExcluded = new Set([
         SPECIAL.responsibleBirthDisplay, SPECIAL.responsibleCep, 'atletaresponsavel-municipio-descricao'
       ]);
@@ -1178,6 +1266,13 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
   function updateAthleteCard() {
     const row = currentRow();
     $('#ykl-athlete-name').textContent = row ? displayName(row) : 'Nenhum atleta carregado';
+    $('#ykl-athlete-category').textContent = row ? (athleteCategory(row) || 'Categoria não informada') : '';
+    const uniformParts = row ? [
+      ['Camisa', getHeaderValue(row, ['Nome ou apelido na camisa'])],
+      ['Nº', getHeaderValue(row, ['Número da camisa', 'Numero da camisa'])],
+      ['Tam.', getHeaderValue(row, ['Tamanho da camisa'])]
+    ].filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`) : [];
+    $('#ykl-athlete-uniform').textContent = uniformParts.join(' · ');
     $('#ykl-counter').textContent = state.rows.length ? `${state.currentIndex + 1} de ${state.rows.length}` : '0 de 0';
     const status = $('#ykl-status');
     const serverStatus = currentServerStatus();
@@ -1253,8 +1348,17 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         <section class="ykl-section active" data-section="cadastro">
           <div class="ykl-card">
             <div class="ykl-row"><span id="ykl-counter" class="ykl-muted">0 de 0</span><span id="ykl-status" class="ykl-badge">Pendente</span></div>
-            <div id="ykl-athlete-name" class="ykl-athlete">Nenhum CSV carregado</div>
+            <div id="ykl-athlete-name" class="ykl-athlete">Nenhum atleta carregado</div>
+            <div id="ykl-athlete-category" class="ykl-muted"></div>
+            <div id="ykl-athlete-uniform" class="ykl-muted"></div>
             <div id="ykl-map-count" class="ykl-muted">0 campos mapeados</div>
+          </div>
+          <div class="ykl-card">
+            <label class="ykl-label" for="ykl-category-filter">Cadastrar por categoria</label>
+            <select id="ykl-category-filter">
+              <option value="">Todas as categorias</option>
+            </select>
+            <div id="ykl-category-summary" class="ykl-muted" style="margin-top:5px">Exibindo atletas de todas as categorias.</div>
           </div>
           <div class="ykl-card ykl-doc-card">
             <h3>Documentos no Drive</h3>
@@ -1326,6 +1430,14 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     $('#ykl-api-token').addEventListener('change', e => { state.apiToken = e.target.value.trim(); saveState(); updateConnectionStatus(); });
     $('#ykl-api-test').addEventListener('click', testApiConnection);
     $('#ykl-load-sheets').addEventListener('click', loadAthletesFromSheets);
+    $('#ykl-category-filter').addEventListener('change', async e => {
+      state.categoryFilter = e.target.value;
+      saveState();
+      renderCategoryFilter();
+      if (state.dataSource === 'sheets' && state.apiUrl && state.apiToken) {
+        await loadAthletesFromSheets();
+      }
+    });
     $('#ykl-fill').addEventListener('click', fillAthlete);
     $('#ykl-abort').addEventListener('click', () => { state.abort = true; log('Solicitação de interrupção enviada...'); });
     $('#ykl-prev').addEventListener('click', () => changeIndex(-1));
@@ -1376,9 +1488,9 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const parsedRaw = csvParse(text);
     if (!parsedRaw.headers.length || !parsedRaw.rows.length) return alert('Não encontrei cabeçalho e registros nesse CSV.');
     const parsed = addDerivedResponsibleColumns(parsedRaw.headers, parsedRaw.rows);
-    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {}; state.dataSource = 'csv'; state.serverStatuses = {};
+    state.headers = parsed.headers; state.rows = parsed.rows; state.currentIndex = 0; state.completed = {}; state.documentStatus = {}; state.dataSource = 'csv'; state.serverStatuses = {}; state.categoryFilter = ''; state.availableCategories = [];
     state.mapping = Object.fromEntries(Object.entries(state.mapping).filter(([,h]) => state.headers.includes(h)));
-    autoMap(); saveState(); renderMapping(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
+    autoMap(); saveState(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); switchTab('mapeamento');
     const modeloYoka = findHeader(state.headers, ['CPF do atleta']) && findHeader(state.headers, ['Responsável principal']);
     alert(modeloYoka
       ? `${state.rows.length} atletas importados. O modelo de colunas do Yoka foi reconhecido e mapeado automaticamente. Confira o mapeamento antes do primeiro teste.`
@@ -1387,8 +1499,8 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
 
   function clearLocalData() {
     if (!confirm('Apagar o CSV, o mapeamento e o progresso armazenados neste Chrome?')) return;
-    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, pendingRegistration: null });
-    chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
+    Object.assign(state, { headers: [], rows: [], mapping: {}, currentIndex: 0, completed: {}, delay: DEFAULT_DELAY, logoDataUrl: '', documentStatus: {}, apiUrl: '', apiToken: '', dataSource: 'csv', serverStatuses: {}, categoryFilter: '', availableCategories: [], pendingRegistration: null });
+    chrome.storage.local.remove(STORAGE_KEY, () => { renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo(); clearLog(); setProgress(0); });
   }
 
   function exportMapping() {
@@ -1419,7 +1531,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
       state.rows = enriched.rows;
       autoMap();
     }
-    buildUi(); renderMapping(); updateAthleteCard(); updateControls(); updateLogo();
+    buildUi(); renderMapping(); renderCategoryFilter(); updateAthleteCard(); updateControls(); updateLogo();
     const saveButton = document.getElementById('save-Atleta');
     if (saveButton) saveButton.addEventListener('click', rememberPendingRegistration, true);
     form.addEventListener('submit', rememberPendingRegistration, true);
