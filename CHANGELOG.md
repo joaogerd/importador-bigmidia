@@ -10,6 +10,7 @@ Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 - Adiciona a **Foto do atleta** à área de arquivos, usando a coluna `Link da foto do atleta` do Google Sheets.
 - Permite abrir, baixar e incluir a foto diretamente a partir do Drive.
 - Padroniza a linha da foto com RG, atestado e autorização: botões **Abrir / Baixar / Incluir**, estados **Link disponível / Sem link / Baixando... / Incluído / Erro** e as mesmas classes visuais do `content.js`.
+- O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em sequência, **Foto + RG + Atestado + Autorização**, aguardando cada item terminar antes de iniciar o próximo.
 - A foto é tratada separadamente de RG/atestado/termo e nunca é enviada como tipo de documento.
 - Detecta o campo de foto do BigMidia por identificadores/labels relacionados a foto, imagem ou avatar, excluindo explicitamente o campo do modal de documentos.
 - Aceita foto em JPG/JPEG ou PNG e usa o mesmo aviso não bloqueante do restante do painel.
