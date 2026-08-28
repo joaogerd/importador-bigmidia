@@ -105,7 +105,20 @@ A v1.5.0 preserva o comportamento introduzido na v1.4.9 para telas baixas:
 - compactação automática por altura;
 - redução de textos auxiliares/densidade antes de reduzir controles principais.
 
-A reserva de espaço do dock passa a existir apenas quando o dock de Cadastro está presente; telas como Atletas e Configurações não perdem espaço vertical desnecessariamente.
+### Invariante responsiva das ações críticas
+
+As ações **Preencher atleta**, **Interromper**, **Registrar cadastrado e próximo**, **Anterior** e **Próximo** não podem depender de o usuário rolar até o final do painel quando houver pouco espaço útil.
+
+O dock é ativado quando:
+
+- a altura útil da janela é reduzida; ou
+- o conteúdo do painel ultrapassa a área rolável disponível.
+
+A decisão não deve depender somente da resolução nominal da tela. Barras do navegador, zoom, janela dividida e outros fatores que reduzam a viewport também devem acionar o comportamento responsivo.
+
+Esse requisito deve ser tratado como prevenção de regressão funcional, e não como preferência estética.
+
+A reserva de espaço do dock existe apenas quando as ações de Cadastro estão presentes; telas como Atletas e Configurações não perdem espaço vertical desnecessariamente.
 
 Listas extensas (atletas e mapeamento) possuem áreas internas de scroll, evitando que todo o painel cresça indefinidamente.
 
