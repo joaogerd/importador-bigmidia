@@ -1,0 +1,167 @@
+#ykl-root .ykl-action-dock {
+  display: block;
+}
+
+@media (max-height: 900px) {
+  #ykl-root.ykl-compact-height {
+    top: 8px;
+    right: 8px;
+    max-height: calc(100vh - 16px);
+  }
+
+  #ykl-root.ykl-compact-height .ykl-header {
+    min-height: 46px;
+    padding: 6px 9px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-title-text strong {
+    font-size: 13px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-title-text span {
+    font-size: 10px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-body {
+    padding: 8px;
+    padding-bottom: 126px;
+    max-height: calc(100vh - 62px);
+  }
+
+  #ykl-root.ykl-compact-height .ykl-tabs {
+    position: sticky;
+    top: -8px;
+    z-index: 12;
+    margin: -1px 0 6px;
+    padding: 1px 0 5px;
+    background: #fff;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-tab {
+    padding: 6px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-card {
+    padding: 7px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-row {
+    margin: 4px 0;
+    gap: 6px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-label {
+    margin-bottom: 3px;
+  }
+
+  #ykl-root.ykl-compact-height input[type="file"],
+  #ykl-root.ykl-compact-height input[type="number"],
+  #ykl-root.ykl-compact-height input[type="search"],
+  #ykl-root.ykl-compact-height input[type="text"],
+  #ykl-root.ykl-compact-height input[type="password"],
+  #ykl-root.ykl-compact-height select {
+    padding: 6px 7px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-btn {
+    padding: 7px 9px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-doc-row {
+    padding: 4px 0;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-doc-row .ykl-btn {
+    padding: 5px 7px;
+    min-width: 46px;
+  }
+
+  #ykl-root.ykl-compact-height #ykl-v148-search-card .ykl-muted,
+  #ykl-root.ykl-compact-height .ykl-card:has(#ykl-category-filter) .ykl-muted,
+  #ykl-root.ykl-compact-height .ykl-doc-card > .ykl-muted {
+    display: none;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-card:has(#ykl-delay) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-card:has(#ykl-delay) .ykl-label {
+    margin: 0;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-card:has(#ykl-delay) .ykl-muted {
+    display: none;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-action-dock {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 30;
+    padding: 7px;
+    border: 1px solid #dce2e7;
+    border-radius: 9px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 -6px 18px rgba(23,33,43,.12);
+  }
+
+  #ykl-root.ykl-compact-height .ykl-action-dock > #ykl-fill {
+    margin: 0 0 5px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-action-dock .ykl-row {
+    margin: 4px 0 0;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-action-dock .ykl-btn {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-log {
+    height: 72px;
+  }
+}
+
+@media (max-height: 760px) {
+  #ykl-root.ykl-very-compact-height .ykl-body {
+    padding-bottom: 116px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-card {
+    padding: 6px;
+    margin-bottom: 5px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-athlete {
+    font-size: 13px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-doc-row strong {
+    font-size: 11px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-doc-status {
+    font-size: 9px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-action-dock {
+    padding: 6px;
+  }
+
+  #ykl-root.ykl-very-compact-height .ykl-log {
+    height: 58px;
+  }
+}
