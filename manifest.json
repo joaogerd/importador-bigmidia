@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.4.9",
-  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do Google Sheets do Yoka ou CSV, com busca por atleta, arquivos do Drive, registros da Liga, transferência e acesso direto ao cadastro.",
+  "version": "1.5.0",
+  "description": "Assistente operacional do Yoka para cadastro, documentos, atletas, registros da Liga, transferências e configurações independentes da página atual.",
   "permissions": [
     "storage"
   ],
@@ -28,7 +28,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://ligapaulistafutsal.bigmidia.com/*"
+        "https://ligapaulistafutsal.bigmidia.com/atleta/create*",
+        "https://ligapaulistafutsal.bigmidia.com/atleta/update*"
       ],
       "js": [
         "content.js",
@@ -37,14 +38,70 @@
         "league-registry-v149.js",
         "register-unsynced-v149.js",
         "default-icon-v148.js",
-        "app-shell-v149.js",
+        "mapping-catalog-v150.js",
+        "app-shell-v150.js",
+        "config-v150.js",
+        "compact-layout-v149.js"
+      ],
+      "css": [
+        "styles.css",
+        "app-shell-v150.css",
+        "compact-layout-v149.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/atleta/index*"
+      ],
+      "js": [
+        "app-shell-v150.js",
+        "config-v150.js",
         "league-registry-sync-v149.js",
+        "compact-layout-v149.js"
+      ],
+      "css": [
+        "styles.css",
+        "app-shell-v150.css",
+        "compact-layout-v149.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/bid/create*"
+      ],
+      "js": [
+        "app-shell-v150.js",
+        "config-v150.js",
         "transfer-v149.js",
         "compact-layout-v149.js"
       ],
       "css": [
         "styles.css",
-        "app-shell-v149.css",
+        "app-shell-v150.css",
+        "compact-layout-v149.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/*"
+      ],
+      "exclude_matches": [
+        "https://ligapaulistafutsal.bigmidia.com/atleta/create*",
+        "https://ligapaulistafutsal.bigmidia.com/atleta/update*",
+        "https://ligapaulistafutsal.bigmidia.com/atleta/index*",
+        "https://ligapaulistafutsal.bigmidia.com/bid/create*"
+      ],
+      "js": [
+        "app-shell-v150.js",
+        "config-v150.js",
+        "compact-layout-v149.js"
+      ],
+      "css": [
+        "styles.css",
+        "app-shell-v150.css",
         "compact-layout-v149.css"
       ],
       "run_at": "document_idle"
