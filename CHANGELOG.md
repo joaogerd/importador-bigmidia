@@ -2,6 +2,17 @@
 
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
+## 1.4.9
+- Adiciona coleta dos números de registro da Liga a partir dos links `atleta/update?id=...` existentes na listagem do BigMidia.
+- Faz a correspondência com o cadastro do Yoka usando **CPF como prioridade** e **nome completo normalizado** como segunda opção.
+- Correspondências ambíguas, conflitos ou atletas não encontrados não são gravados automaticamente.
+- Tenta percorrer automaticamente a paginação da listagem, inclusive paginação por navegação de URL ou por JavaScript.
+- Sincroniza os resultados em lote para as colunas **ID BigMidia** e **URL/Referência BigMidia** da aba `Cadastro BigMidia`.
+- O backend passa a devolver também as referências BigMidia no `listAthletes`.
+- Atualizações normais de status/documentos passam a preservar uma referência BigMidia já existente.
+- O atleta selecionado no painel mostra `Registro Liga: #xxxxx` e ganha o botão **Abrir na Liga**.
+- Os resultados da busca por nome passam a mostrar `Liga #xxxxx` quando o registro já estiver sincronizado.
+
 ## 1.4.8
 - Adiciona **busca de atleta pelo nome** no painel principal para o fluxo de correção pontual de cadastros/documentos.
 - A busca consulta todos os atletas do Google Sheets, independentemente do filtro de categoria atualmente selecionado.
