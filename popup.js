@@ -212,6 +212,13 @@
     }, { once: true });
   }
 
+  function configureVersion() {
+    const el = $('popup-version');
+    if (!el) return;
+    const version = chrome.runtime.getManifest()?.version || '?';
+    el.textContent = `v${version}`;
+  }
+
   $('open-create')?.addEventListener('click', () => navigate(CREATE_URL));
   $('open-index')?.addEventListener('click', () => navigate(INDEX_URL));
   $('athlete-search')?.addEventListener('input', () => {
@@ -225,6 +232,7 @@
     }
   });
 
+  configureVersion();
   configureLogo();
   $('athlete-search')?.focus();
 })();
