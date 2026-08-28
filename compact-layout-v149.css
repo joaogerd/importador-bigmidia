@@ -29,11 +29,16 @@
 
   #ykl-root.ykl-compact-height .ykl-body {
     padding: 8px;
-    padding-bottom: 126px;
     max-height: calc(100vh - 62px);
   }
 
-  #ykl-root.ykl-compact-height .ykl-tabs {
+  /* Só reserva espaço para o rodapé fixo quando as ações de cadastro existem. */
+  #ykl-root.ykl-compact-height:has(.ykl-action-dock) .ykl-body {
+    padding-bottom: 126px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-tabs,
+  #ykl-root.ykl-compact-height .ykl-v150-nav {
     position: sticky;
     top: -8px;
     z-index: 12;
@@ -136,7 +141,7 @@
 }
 
 @media (max-height: 760px) {
-  #ykl-root.ykl-very-compact-height .ykl-body {
+  #ykl-root.ykl-very-compact-height:has(.ykl-action-dock) .ykl-body {
     padding-bottom: 116px;
   }
 
