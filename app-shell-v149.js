@@ -11,6 +11,7 @@
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const storageGet = keys => new Promise(resolve => chrome.storage.local.get(keys, resolve));
   const storageSet = values => new Promise((resolve, reject) => {
     chrome.storage.local.set(values, () => {
@@ -21,9 +22,13 @@
 
   let dataset = null;
   let datasetPromise = null;
-  let searchTimer = null;
   let selectedAthlete = null;
-  let activeTopTab = '';
+  let searchTimer = null;
+  let activeTab = '';
+  let configTab = 'dados';
+  let root = null;
+  let body = null;
+  let legacy = null;
 
   function normalize(value) {
     return String(value ?? '')
@@ -37,32 +42,23 @@
     }[ch]));
   }
 
-  function api(saved, action, payload = {}) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({
-        type: 'ykl-api-request',
-        apiUrl: saved.apiUrl || '',
-        token: saved.apiToken || '',
-        action,
-        payload
-      }, response => {
-        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        if (!response?.ok) return reject(new Error(response?.error || 'Falha na comunicação com o Yoka.'));
-        resolve(response.data);
-      });
-    });
-  }
-
   function pathIs(path) {
     return location.pathname.replace(/\/$/, '') === path;
   }
 
   function pageKind() {
-    if (pathIs('/atleta/create')) return 'cadastro';
-    if (pathIs('/atleta/update')) return 'cadastro';
+    if (pathIs('/atleta/create') || pathIs('/atleta/update')) return 'cadastro';
     if (pathIs('/atleta/index')) return 'sincronizacao';
     if (pathIs('/bid/create')) return 'transferencia';
     return 'atletas';
+  }
+
+  function pageStatusText() {
+    if (pathIs('/atleta/create')) return 'Novo cadastro';
+    if (pathIs('/atleta/update')) return 'Edição de atleta';
+    if (pathIs('/atleta/index')) return 'Listagem de atletas';
+    if (pathIs('/bid/create')) return 'Nova transferência';
+    return 'Navegação na Liga';
   }
 
   function findHeader(headers, candidates) {
@@ -86,6 +82,22 @@
   function collectCategories(rows, headers) {
     return [...new Set((rows || []).map(row => athleteCategory(row, headers)).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }));
+  }
+
+  function api(saved, action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({
+        type: 'ykl-api-request',
+        apiUrl: saved.apiUrl || '',
+        token: saved.apiToken || '',
+        action,
+        payload
+      }, response => {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        if (!response?.ok) return reject(new Error(response?.error || 'Falha na comunicação com o Yoka.'));
+        resolve(response.data);
+      });
+    });
   }
 
   function addDerivedResponsibleColumns(headers, rows) {
@@ -133,6 +145,7 @@
         [derived.relation]: useMother ? 'Mãe' : role === 'pai' ? 'Pai' : ''
       };
     });
+
     return { headers: outputHeaders, rows: outputRows };
   }
 
@@ -161,36 +174,29 @@
       const stored = await storageGet([STATE_KEY, CACHE_KEY]);
       const saved = stored?.[STATE_KEY] || {};
       const localReferences = stored?.[CACHE_KEY] || {};
-      let sourceRows = [];
-      let sourceHeaders = [];
+      let rows = Array.isArray(saved.rows) ? saved.rows : [];
+      let headers = Array.isArray(saved.headers) ? saved.headers : [];
       let statuses = saved.serverStatuses || {};
       let references = { ...localReferences };
 
       if (saved.apiUrl && saved.apiToken) {
         try {
           const data = await api(saved, 'listAthletes', {});
-          sourceRows = Array.isArray(data?.athletes) ? data.athletes : [];
-          sourceHeaders = Array.isArray(data?.headers) && data.headers.length
-            ? data.headers
-            : Object.keys(sourceRows[0] || {});
+          rows = Array.isArray(data?.athletes) ? data.athletes : rows;
+          headers = Array.isArray(data?.headers) && data.headers.length ? data.headers : (rows.length ? Object.keys(rows[0]) : headers);
           statuses = data?.statuses || statuses;
           references = { ...references, ...(data?.references || {}) };
         } catch (error) {
-          sourceRows = Array.isArray(saved.rows) ? saved.rows : [];
-          sourceHeaders = Array.isArray(saved.headers) ? saved.headers : [];
-          if (!sourceRows.length) throw error;
+          if (!rows.length) throw error;
         }
-      } else {
-        sourceRows = Array.isArray(saved.rows) ? saved.rows : [];
-        sourceHeaders = Array.isArray(saved.headers) ? saved.headers : [];
       }
 
-      if (!sourceRows.length) throw new Error('Carregue os atletas do Google Sheets na aba Configurações > Dados.');
-      const enriched = addDerivedResponsibleColumns(sourceHeaders, sourceRows);
+      if (!rows.length) throw new Error('Carregue os atletas do Google Sheets em Config. > Dados.');
+      const enriched = addDerivedResponsibleColumns(headers, rows);
       dataset = {
         saved,
-        headers: enriched.headers,
         rows: enriched.rows,
+        headers: enriched.headers,
         statuses,
         references,
         athletes: mapAthletes(enriched.rows, enriched.headers, references, statuses)
@@ -211,23 +217,23 @@
     if (index < 0) throw new Error('O atleta selecionado não foi encontrado nos dados do Yoka.');
     const stored = await storageGet([STATE_KEY]);
     const saved = stored?.[STATE_KEY] || {};
-    const next = {
-      ...saved,
-      headers: data.headers,
-      rows: data.rows,
-      currentIndex: index,
-      completed: saved.completed || {},
-      dataSource: 'sheets',
-      serverStatuses: data.statuses || {},
-      categoryFilter: '',
-      availableCategories: collectCategories(data.rows, data.headers),
-      documentStatus: {},
-      pendingRegistration: null
-    };
-    await storageSet({ [STATE_KEY]: next });
+    await storageSet({
+      [STATE_KEY]: {
+        ...saved,
+        headers: data.headers,
+        rows: data.rows,
+        currentIndex: index,
+        completed: saved.completed || {},
+        dataSource: 'sheets',
+        serverStatuses: data.statuses || {},
+        categoryFilter: '',
+        availableCategories: collectCategories(data.rows, data.headers),
+        documentStatus: {},
+        pendingRegistration: null
+      }
+    });
     selectedAthlete = item;
     renderSelectedAthlete();
-    return item;
   }
 
   function currentStateAthlete(data, saved) {
@@ -238,280 +244,255 @@
     return data?.athletes?.find(item => item.athleteId === id) || null;
   }
 
-  function ensureBaseRoot() {
-    let root = $('#ykl-root');
-    if (root) return root;
-
-    root = document.createElement('div');
-    root.id = 'ykl-root';
-    root.className = 'ykl-unified-shell ykl-shell-standalone';
-    root.innerHTML = `
+  function createStandaloneRoot() {
+    const node = document.createElement('div');
+    node.id = 'ykl-root';
+    node.className = 'ykl-unified-shell ykl-shell-standalone';
+    node.innerHTML = `
       <div class="ykl-header">
         <div class="ykl-title">
-          <div class="ykl-logo"><img id="ykl-logo-img" alt="Yoka"></div>
+          <div class="ykl-logo"><img id="ykl-logo-img" alt="Logo do Yoka"></div>
           <div class="ykl-title-text"><strong>Importador Yoka</strong><span>Liga Paulista · assistente operacional</span></div>
         </div>
         <button class="ykl-icon-btn" id="ykl-toggle" title="Recolher">−</button>
       </div>
       <div class="ykl-body"></div>`;
-    document.body.appendChild(root);
-    const img = $('#ykl-logo-img', root);
+    document.body.appendChild(node);
+    const img = $('#ykl-logo-img', node);
     if (img) img.src = chrome.runtime.getURL('icons/icon128.png');
-    $('#ykl-toggle', root)?.addEventListener('click', () => {
-      root.classList.toggle('ykl-collapsed');
-      const button = $('#ykl-toggle', root);
-      if (button) button.textContent = root.classList.contains('ykl-collapsed') ? '+' : '−';
+    $('#ykl-toggle', node)?.addEventListener('click', () => {
+      node.classList.toggle('ykl-collapsed');
+      const button = $('#ykl-toggle', node);
+      if (button) button.textContent = node.classList.contains('ykl-collapsed') ? '+' : '−';
     });
-    return root;
+    return node;
   }
 
-  function pageStatusText(kind) {
-    if (kind === 'cadastro') return pathIs('/atleta/update') ? 'Edição de atleta' : 'Novo cadastro';
-    if (kind === 'sincronizacao') return 'Listagem de atletas';
-    if (kind === 'transferencia') return 'Nova transferência';
-    return 'Navegação na Liga';
+  async function obtainRoot() {
+    for (let i = 0; i < 20; i++) {
+      const existing = $('#ykl-root');
+      if (existing) return existing;
+      if (!pathIs('/atleta/create') && !pathIs('/atleta/update')) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return $('#ykl-root') || createStandaloneRoot();
   }
 
-  function buildUnifiedNavigation(root) {
-    if ($('#ykl-app-nav', root)) return;
-    root.classList.add('ykl-unified-shell');
-    const body = $('.ykl-body', root);
-    if (!body) return;
-
+  function captureLegacy() {
     const oldTabs = $('.ykl-tabs', body);
     const cadastro = $('.ykl-section[data-section="cadastro"]', body);
     const mapping = $('.ykl-section[data-section="mapeamento"]', body);
-    const data = $('.ykl-section[data-section="dados"]', body);
-    oldTabs?.remove();
+    const dados = $('.ykl-section[data-section="dados"]', body);
+    legacy = { oldTabs, cadastro, mapping, dados };
+    if (oldTabs) oldTabs.style.display = 'none';
+  }
+
+  function buildShell() {
+    if ($('#ykl-global-nav', root)) return;
+    root.classList.add('ykl-unified-shell');
 
     const context = document.createElement('div');
-    context.id = 'ykl-app-context';
-    context.className = 'ykl-app-context';
-    context.innerHTML = `<span class="ykl-app-context-label">Página atual</span><strong>${escapeHtml(pageStatusText(pageKind()))}</strong>`;
-    body.prepend(context);
+    context.id = 'ykl-global-context';
+    context.className = 'ykl-global-context';
+    context.innerHTML = `<span>Página atual</span><strong>${escapeHtml(pageStatusText())}</strong>`;
 
     const nav = document.createElement('div');
-    nav.id = 'ykl-app-nav';
-    nav.className = 'ykl-app-nav';
+    nav.id = 'ykl-global-nav';
+    nav.className = 'ykl-global-nav';
     nav.innerHTML = `
-      <button type="button" data-app-tab="atletas">Atletas</button>
-      <button type="button" data-app-tab="cadastro">Cadastro</button>
-      <button type="button" data-app-tab="transferencia">Transferir</button>
-      <button type="button" data-app-tab="sincronizacao">Sincronizar</button>
-      <button type="button" data-app-tab="config">Config.</button>`;
-    context.after(nav);
+      <button type="button" data-global-tab="atletas">Atletas</button>
+      <button type="button" data-global-tab="cadastro">Cadastro</button>
+      <button type="button" data-global-tab="transferencia">Transferir</button>
+      <button type="button" data-global-tab="sincronizacao">Sincronizar</button>
+      <button type="button" data-global-tab="config">Config.</button>`;
 
-    const atletas = document.createElement('section');
-    atletas.id = 'ykl-app-atletas';
-    atletas.className = 'ykl-app-page';
-    atletas.innerHTML = `
-      <div class="ykl-card">
-        <h3>Atletas Yoka</h3>
-        <label class="ykl-label" for="ykl-app-athlete-search">Buscar atleta</label>
-        <input id="ykl-app-athlete-search" type="search" autocomplete="off" placeholder="Digite pelo menos 2 letras">
-        <div id="ykl-app-athlete-status" class="ykl-muted" style="margin-top:5px">Pesquise um atleta para cadastrar, editar ou transferir.</div>
-        <div id="ykl-app-athlete-results" class="ykl-app-results" hidden></div>
-      </div>
-      <div id="ykl-app-selected" class="ykl-card" hidden></div>
-      <div class="ykl-app-shortcuts">
-        <button type="button" class="ykl-btn" data-nav-url="${ROUTES.index}">Lista da Liga</button>
-        <button type="button" class="ykl-btn ykl-blue" data-nav-url="${ROUTES.create}">Novo cadastro</button>
-        <button type="button" class="ykl-btn" data-nav-url="${ROUTES.transfer}">Nova transferência</button>
-      </div>`;
+    const pages = document.createElement('div');
+    pages.id = 'ykl-global-pages';
+    pages.innerHTML = `
+      <section id="ykl-global-atletas" class="ykl-global-page">
+        <div class="ykl-card">
+          <h3>Atletas Yoka</h3>
+          <label class="ykl-label" for="ykl-global-search">Buscar atleta</label>
+          <input id="ykl-global-search" type="search" autocomplete="off" placeholder="Digite pelo menos 2 letras">
+          <div id="ykl-global-search-status" class="ykl-muted" style="margin-top:5px">Pesquise um atleta para cadastrar, editar ou transferir.</div>
+          <div id="ykl-global-results" class="ykl-global-results" hidden></div>
+        </div>
+        <div id="ykl-global-selected" class="ykl-card" hidden></div>
+        <div class="ykl-global-shortcuts">
+          <button type="button" class="ykl-btn" data-url="${ROUTES.index}">Lista da Liga</button>
+          <button type="button" class="ykl-btn ykl-blue" data-url="${ROUTES.create}">Novo cadastro</button>
+          <button type="button" class="ykl-btn" data-url="${ROUTES.transfer}">Nova transferência</button>
+        </div>
+      </section>
 
-    const cadastroPage = cadastro || document.createElement('section');
-    cadastroPage.id = cadastroPage.id || 'ykl-app-cadastro';
-    cadastroPage.classList.add('ykl-app-page');
-    cadastroPage.classList.remove('active');
-    if (!cadastro) {
-      cadastroPage.innerHTML = `
-        <div class="ykl-card ykl-app-placeholder">
+      <section id="ykl-global-cadastro" class="ykl-global-page">
+        <div id="ykl-global-cadastro-placeholder" class="ykl-card ykl-global-placeholder">
           <h3>Cadastro de atleta</h3>
-          <div class="ykl-muted">As ferramentas de preenchimento ficam ativas nas páginas de novo cadastro ou edição de atleta.</div>
-          <button type="button" class="ykl-btn ykl-blue ykl-full" data-nav-url="${ROUTES.create}">Abrir novo cadastro</button>
-        </div>`;
-    }
+          <div class="ykl-muted">As ferramentas completas ficam ativas em novo cadastro ou edição.</div>
+          <button type="button" class="ykl-btn ykl-blue ykl-full" data-url="${ROUTES.create}" style="margin-top:8px">Abrir novo cadastro</button>
+        </div>
+      </section>
 
-    const transfer = document.createElement('section');
-    transfer.id = 'ykl-app-transferencia';
-    transfer.className = 'ykl-app-page';
-    transfer.innerHTML = pathIs('/bid/create')
-      ? '<div id="ykl-app-transfer-host"></div>'
-      : `<div class="ykl-card ykl-app-placeholder"><h3>Transferência</h3><div class="ykl-muted">Abra a tela de transferência para localizar o atleta do Yoka no BID e preparar a transferência.</div><button type="button" class="ykl-btn ykl-blue ykl-full" data-nav-url="${ROUTES.transfer}">Abrir transferência</button></div>`;
+      <section id="ykl-global-transferencia" class="ykl-global-page">
+        <div id="ykl-app-transfer-host"></div>
+        <div id="ykl-global-transfer-placeholder" class="ykl-card ykl-global-placeholder">
+          <h3>Transferência</h3>
+          <div class="ykl-muted">A seleção assistida fica ativa na tela de Nova Transferência.</div>
+          <button type="button" class="ykl-btn ykl-blue ykl-full" data-url="${ROUTES.transfer}" style="margin-top:8px">Abrir transferência</button>
+        </div>
+      </section>
 
-    const sync = document.createElement('section');
-    sync.id = 'ykl-app-sincronizacao';
-    sync.className = 'ykl-app-page';
-    sync.innerHTML = pathIs('/atleta/index')
-      ? '<div id="ykl-app-sync-host"></div>'
-      : `<div class="ykl-card ykl-app-placeholder"><h3>Sincronização</h3><div class="ykl-muted">A captura dos números de registro da Liga fica ativa na listagem de atletas.</div><button type="button" class="ykl-btn ykl-blue ykl-full" data-nav-url="${ROUTES.index}">Abrir listagem de atletas</button></div>`;
+      <section id="ykl-global-sincronizacao" class="ykl-global-page">
+        <div id="ykl-app-sync-host"></div>
+        <div id="ykl-global-sync-placeholder" class="ykl-card ykl-global-placeholder">
+          <h3>Sincronização</h3>
+          <div class="ykl-muted">A captura dos registros da Liga fica ativa na listagem de atletas.</div>
+          <button type="button" class="ykl-btn ykl-blue ykl-full" data-url="${ROUTES.index}" style="margin-top:8px">Abrir listagem</button>
+        </div>
+      </section>
 
-    const config = document.createElement('section');
-    config.id = 'ykl-app-config';
-    config.className = 'ykl-app-page';
-    config.innerHTML = `
-      <div class="ykl-app-subtabs">
-        <button type="button" data-config-tab="mapeamento">Mapeamento</button>
-        <button type="button" data-config-tab="dados">Dados</button>
-      </div>
-      <div id="ykl-app-config-map" class="ykl-app-config-pane"></div>
-      <div id="ykl-app-config-data" class="ykl-app-config-pane"></div>`;
+      <section id="ykl-global-config" class="ykl-global-page">
+        <div class="ykl-global-config-tabs">
+          <button type="button" data-config-tab="mapeamento">Mapeamento</button>
+          <button type="button" data-config-tab="dados">Dados</button>
+        </div>
+        <div id="ykl-global-config-standalone"></div>
+      </section>`;
 
-    body.append(atletas, cadastroPage, transfer, sync, config);
+    body.prepend(pages);
+    body.prepend(nav);
+    body.prepend(context);
 
-    if (mapping) {
-      mapping.classList.remove('ykl-section', 'active');
-      mapping.classList.add('ykl-app-config-content');
-      $('#ykl-app-config-map', config).appendChild(mapping);
-    } else {
-      $('#ykl-app-config-map', config).innerHTML = `
-        <div class="ykl-card ykl-app-placeholder"><h3>Mapeamento</h3><div class="ykl-muted">O mapeamento depende dos campos do formulário da Liga. Ele pode ser revisado em uma tela de cadastro ou edição.</div><button type="button" class="ykl-btn ykl-full" data-nav-url="${ROUTES.create}">Abrir tela de cadastro</button></div>`;
-    }
-
-    if (data) {
-      data.classList.remove('ykl-section', 'active');
-      data.classList.add('ykl-app-config-content');
-      $('#ykl-app-config-data', config).appendChild(data);
-    } else {
-      buildPortableDataConfig($('#ykl-app-config-data', config));
-    }
-
-    nav.querySelectorAll('[data-app-tab]').forEach(button => {
-      button.addEventListener('click', () => activateTopTab(button.dataset.appTab));
+    $$('#ykl-global-nav [data-global-tab]', root).forEach(button => {
+      button.addEventListener('click', () => showTab(button.dataset.globalTab));
     });
-    config.querySelectorAll('[data-config-tab]').forEach(button => {
-      button.addEventListener('click', () => activateConfigTab(button.dataset.configTab));
+    $$('#ykl-global-config [data-config-tab]', root).forEach(button => {
+      button.addEventListener('click', () => showConfig(button.dataset.configTab));
     });
-    body.querySelectorAll('[data-nav-url]').forEach(button => {
-      button.addEventListener('click', () => { location.href = button.dataset.navUrl; });
+    $$('[data-url]', pages).forEach(button => {
+      button.addEventListener('click', () => { location.href = button.dataset.url; });
     });
 
-    installAthleteSearch(atletas);
-    activeTopTab = pageKind();
-    activateTopTab(activeTopTab);
-    activateConfigTab('mapeamento');
-  }
-
-  function activateTopTab(name) {
-    activeTopTab = name;
-    const root = $('#ykl-root');
-    if (!root) return;
-    root.querySelectorAll('#ykl-app-nav [data-app-tab]').forEach(button => {
-      button.classList.toggle('active', button.dataset.appTab === name);
+    const search = $('#ykl-global-search', root);
+    search?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(searchAthletes, 180);
     });
-    const pages = {
-      atletas: '#ykl-app-atletas',
-      cadastro: '#ykl-app-cadastro, .ykl-app-page[data-section="cadastro"]',
-      transferencia: '#ykl-app-transferencia',
-      sincronizacao: '#ykl-app-sincronizacao',
-      config: '#ykl-app-config'
-    };
-    root.querySelectorAll('.ykl-app-page').forEach(page => page.classList.remove('active'));
-    const selector = pages[name] || pages.atletas;
-    const page = root.querySelector(selector);
-    page?.classList.add('active');
-  }
-
-  function activateConfigTab(name) {
-    const root = $('#ykl-root');
-    if (!root) return;
-    root.querySelectorAll('[data-config-tab]').forEach(button => button.classList.toggle('active', button.dataset.configTab === name));
-    $('#ykl-app-config-map', root)?.classList.toggle('active', name === 'mapeamento');
-    $('#ykl-app-config-data', root)?.classList.toggle('active', name === 'dados');
-  }
-
-  function buildPortableDataConfig(host) {
-    if (!host) return;
-    host.innerHTML = `
-      <div class="ykl-card">
-        <h3>Google Sheets do Yoka</h3>
-        <label class="ykl-label" for="ykl-app-api-url">URL da API (Apps Script)</label>
-        <input id="ykl-app-api-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
-        <label class="ykl-label" for="ykl-app-api-token" style="margin-top:7px">Chave da API</label>
-        <input id="ykl-app-api-token" type="password" placeholder="Chave da API">
-        <div class="ykl-row"><button id="ykl-app-api-save" class="ykl-btn ykl-grow" type="button">Salvar</button><button id="ykl-app-api-test" class="ykl-btn ykl-blue ykl-grow" type="button">Testar conexão</button></div>
-        <div id="ykl-app-api-status" class="ykl-muted"></div>
-      </div>
-      <div class="ykl-note">Configurações ficam salvas neste Chrome. O mapeamento completo é revisado em uma tela de cadastro/edição porque depende dos campos do formulário da Liga.</div>`;
-
-    storageGet([STATE_KEY]).then(result => {
-      const saved = result?.[STATE_KEY] || {};
-      $('#ykl-app-api-url', host).value = saved.apiUrl || '';
-      $('#ykl-app-api-token', host).value = saved.apiToken || '';
-      $('#ykl-app-api-status', host).textContent = saved.apiUrl && saved.apiToken ? 'API configurada.' : 'API ainda não configurada.';
-    });
-
-    $('#ykl-app-api-save', host)?.addEventListener('click', async () => {
-      const stored = await storageGet([STATE_KEY]);
-      const saved = stored?.[STATE_KEY] || {};
-      saved.apiUrl = String($('#ykl-app-api-url', host)?.value || '').trim();
-      saved.apiToken = String($('#ykl-app-api-token', host)?.value || '').trim();
-      await storageSet({ [STATE_KEY]: saved });
-      dataset = null;
-      $('#ykl-app-api-status', host).textContent = 'Configuração salva.';
-    });
-
-    $('#ykl-app-api-test', host)?.addEventListener('click', async () => {
-      const status = $('#ykl-app-api-status', host);
-      try {
-        const stored = await storageGet([STATE_KEY]);
-        const saved = stored?.[STATE_KEY] || {};
-        saved.apiUrl = String($('#ykl-app-api-url', host)?.value || saved.apiUrl || '').trim();
-        saved.apiToken = String($('#ykl-app-api-token', host)?.value || saved.apiToken || '').trim();
-        await storageSet({ [STATE_KEY]: saved });
-        status.textContent = 'Testando conexão…';
-        const result = await api(saved, 'ping', {});
-        status.textContent = `Conexão OK${result?.version ? ` · API ${result.version}` : ''}.`;
-      } catch (error) {
-        status.textContent = error.message || String(error);
+    search?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        clearTimeout(searchTimer);
+        searchAthletes();
       }
     });
+
+    buildStandaloneDataConfig();
   }
 
-  function setAthleteStatus(message, kind = 'normal') {
-    const el = $('#ykl-app-athlete-status');
-    if (!el) return;
-    el.textContent = message;
-    el.className = `ykl-muted ${kind === 'error' ? 'ykl-app-error' : kind === 'success' ? 'ykl-app-success' : ''}`;
+  function hideLegacySections() {
+    for (const section of [legacy?.cadastro, legacy?.mapping, legacy?.dados]) {
+      if (section) section.style.display = 'none';
+    }
   }
 
-  function renderSearchResults(matches) {
-    const box = $('#ykl-app-athlete-results');
-    if (!box) return;
-    box.innerHTML = '';
-    if (!matches.length) {
-      box.hidden = true;
+  function showTab(name) {
+    activeTab = name;
+    hideLegacySections();
+    $$('.ykl-global-page', root).forEach(page => page.classList.remove('active'));
+    $$('#ykl-global-nav [data-global-tab]', root).forEach(button => button.classList.toggle('active', button.dataset.globalTab === name));
+
+    if (name === 'cadastro' && legacy?.cadastro) {
+      legacy.cadastro.style.display = 'block';
       return;
     }
-    box.hidden = false;
-    matches.forEach(item => {
+
+    if (name === 'config') {
+      $('#ykl-global-config', root)?.classList.add('active');
+      showConfig(configTab);
+      return;
+    }
+
+    $(`#ykl-global-${name}`, root)?.classList.add('active');
+    refreshContextualPlaceholders();
+  }
+
+  function showConfig(name) {
+    configTab = name === 'mapeamento' ? 'mapeamento' : 'dados';
+    $$('#ykl-global-config [data-config-tab]', root).forEach(button => button.classList.toggle('active', button.dataset.configTab === configTab));
+    if (activeTab !== 'config') return;
+
+    if (legacy?.mapping || legacy?.dados) {
+      if (legacy.mapping) legacy.mapping.style.display = configTab === 'mapeamento' ? 'block' : 'none';
+      if (legacy.dados) legacy.dados.style.display = configTab === 'dados' ? 'block' : 'none';
+      const standalone = $('#ykl-global-config-standalone', root);
+      if (standalone) standalone.style.display = 'none';
+      return;
+    }
+
+    const standalone = $('#ykl-global-config-standalone', root);
+    if (!standalone) return;
+    standalone.style.display = 'block';
+    if (configTab === 'mapeamento') {
+      standalone.innerHTML = `
+        <div class="ykl-card">
+          <h3>Mapeamento</h3>
+          <div class="ykl-muted">Abra um cadastro ou uma edição de atleta para descobrir e configurar os campos do formulário.</div>
+          <button type="button" class="ykl-btn ykl-blue ykl-full" id="ykl-global-open-map" style="margin-top:8px">Abrir cadastro</button>
+        </div>`;
+      $('#ykl-global-open-map', standalone)?.addEventListener('click', () => { location.href = ROUTES.create; });
+    } else {
+      renderStandaloneDataConfig();
+    }
+  }
+
+  function refreshContextualPlaceholders() {
+    const transferPlaceholder = $('#ykl-global-transfer-placeholder', root);
+    if (transferPlaceholder) transferPlaceholder.style.display = pathIs('/bid/create') ? 'none' : 'block';
+    const syncPlaceholder = $('#ykl-global-sync-placeholder', root);
+    if (syncPlaceholder) syncPlaceholder.style.display = pathIs('/atleta/index') ? 'none' : 'block';
+  }
+
+  function setSearchStatus(message, kind = 'normal') {
+    const el = $('#ykl-global-search-status', root);
+    if (!el) return;
+    el.textContent = message;
+    el.style.color = kind === 'error' ? '#b42318' : kind === 'success' ? '#147a42' : '#64717d';
+  }
+
+  function renderSearchResults(items) {
+    const box = $('#ykl-global-results', root);
+    if (!box) return;
+    box.innerHTML = '';
+    box.hidden = !items.length;
+    for (const item of items) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'ykl-app-result';
+      button.className = 'ykl-global-result';
       const ref = item.reference?.bigmidiaId;
-      button.innerHTML = `<strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category || 'Sem categoria')} · ${ref ? `Liga #${escapeHtml(ref)}` : 'não cadastrado na Liga'}</span>`;
+      button.innerHTML = `<strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.category || 'Categoria não informada')}${ref ? ` · Liga #${escapeHtml(ref)}` : ' · não cadastrado na Liga'}</span>`;
       button.addEventListener('click', async () => {
         try {
           await persistSelectedAthlete(item);
-          setAthleteStatus(`${item.name} selecionado.`, 'success');
+          setSearchStatus(`${item.name} selecionado.`, 'success');
         } catch (error) {
-          setAthleteStatus(error.message || String(error), 'error');
+          setSearchStatus(error.message || String(error), 'error');
         }
       });
       box.appendChild(button);
-    });
+    }
   }
 
   async function searchAthletes() {
-    const input = $('#ykl-app-athlete-search');
+    const input = $('#ykl-global-search', root);
     const query = normalize(input?.value || '');
-    const box = $('#ykl-app-athlete-results');
+    const box = $('#ykl-global-results', root);
     if (box) { box.innerHTML = ''; box.hidden = true; }
     if (query.length < 2) {
-      setAthleteStatus('Digite pelo menos 2 caracteres.');
+      setSearchStatus('Digite pelo menos 2 caracteres.');
       return;
     }
-    setAthleteStatus('Buscando atletas…');
+
+    setSearchStatus('Buscando atletas…');
     try {
       const data = await loadDataset();
       const words = query.split(/\s+/).filter(Boolean);
@@ -524,108 +505,163 @@
         })
         .slice(0, 10);
       renderSearchResults(matches);
-      if (!matches.length) setAthleteStatus('Nenhum atleta encontrado.');
-      else setAthleteStatus(`${matches.length} resultado(s). Clique no atleta para selecioná-lo.`);
+      setSearchStatus(matches.length ? `${matches.length} resultado(s). Clique para selecionar.` : 'Nenhum atleta encontrado.');
     } catch (error) {
-      setAthleteStatus(error.message || 'Não foi possível carregar os atletas.', 'error');
+      setSearchStatus(error.message || 'Não foi possível carregar os atletas.', 'error');
     }
   }
 
-  function installAthleteSearch(root) {
-    const input = $('#ykl-app-athlete-search', root);
-    if (!input) return;
-    input.addEventListener('input', () => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(searchAthletes, 180);
-    });
-    input.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        clearTimeout(searchTimer);
-        searchAthletes();
-      }
-    });
-
-    loadDataset().then(async data => {
-      const stored = await storageGet([STATE_KEY]);
-      selectedAthlete = currentStateAthlete(data, stored?.[STATE_KEY] || {});
-      renderSelectedAthlete();
-    }).catch(() => {});
-  }
-
   function renderSelectedAthlete() {
-    const host = $('#ykl-app-selected');
+    const host = $('#ykl-global-selected', root);
     if (!host) return;
     if (!selectedAthlete) {
       host.hidden = true;
       host.innerHTML = '';
       return;
     }
+
     const ref = selectedAthlete.reference?.bigmidiaId;
     host.hidden = false;
     host.innerHTML = `
       <div class="ykl-row"><span class="ykl-muted">Atleta selecionado</span>${selectedAthlete.status ? `<span class="ykl-badge">${escapeHtml(selectedAthlete.status)}</span>` : ''}</div>
       <div class="ykl-athlete">${escapeHtml(selectedAthlete.name)}</div>
       <div class="ykl-muted">${escapeHtml(selectedAthlete.category || 'Categoria não informada')}${ref ? ` · Liga #${escapeHtml(ref)}` : ' · sem registro na Liga'}</div>
-      <div class="ykl-app-selected-actions">
-        <button type="button" id="ykl-app-primary-athlete" class="ykl-btn ykl-blue">${ref ? 'Editar na Liga' : 'Cadastrar na Liga'}</button>
-        <button type="button" id="ykl-app-transfer-athlete" class="ykl-btn">Transferir</button>
+      <div class="ykl-global-selected-actions">
+        <button type="button" id="ykl-global-primary" class="ykl-btn ykl-blue">${ref ? 'Editar na Liga' : 'Cadastrar na Liga'}</button>
+        <button type="button" id="ykl-global-transfer" class="ykl-btn">Transferir</button>
       </div>`;
 
-    $('#ykl-app-primary-athlete', host)?.addEventListener('click', async () => {
+    $('#ykl-global-primary', host)?.addEventListener('click', async () => {
       await persistSelectedAthlete(selectedAthlete);
       location.href = ref ? `${ORIGIN}/atleta/update?id=${encodeURIComponent(ref)}` : ROUTES.create;
     });
-    $('#ykl-app-transfer-athlete', host)?.addEventListener('click', async () => {
+    $('#ykl-global-transfer', host)?.addEventListener('click', async () => {
       await persistSelectedAthlete(selectedAthlete);
       location.href = ROUTES.transfer;
     });
   }
 
-  function integrateFloatingPanels() {
-    $('#ykl-v149-registry')?.remove();
-    $('#ykl-v149-index-registry')?.remove();
-    $('#ykl-v149-launcher')?.remove();
+  function integrateSyncPanel() {
     const panel = $('#ykl-v149-sync-registry');
-    const host = $('#ykl-app-sync-host');
-    if (panel && host && !host.contains(panel)) {
-      host.appendChild(panel);
-      panel.classList.add('ykl-app-embedded-panel');
-      panel.style.position = 'static';
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
-      panel.style.width = '100%';
-      panel.style.boxShadow = 'none';
-      panel.style.border = '0';
-      panel.style.borderRadius = '0';
-      panel.style.padding = '0';
-    }
+    const host = $('#ykl-app-sync-host', root);
+    if (!panel || !host || host.contains(panel)) return;
+    host.appendChild(panel);
+    panel.classList.add('ykl-global-embedded-panel');
+    panel.style.position = 'static';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.width = '100%';
+    panel.style.boxShadow = 'none';
+    panel.style.border = '0';
+    panel.style.borderRadius = '0';
+    panel.style.padding = '0';
   }
 
-  function init() {
-    const root = ensureBaseRoot();
-    buildUnifiedNavigation(root);
-    integrateFloatingPanels();
+  function buildStandaloneDataConfig() {
+    const host = $('#ykl-global-config-standalone', root);
+    if (!host || legacy?.dados) return;
+    host.dataset.ready = '1';
+  }
 
-    const observer = new MutationObserver(() => integrateFloatingPanels());
-    observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  async function renderStandaloneDataConfig() {
+    const host = $('#ykl-global-config-standalone', root);
+    if (!host || legacy?.dados) return;
+    const stored = await storageGet([STATE_KEY]);
+    const saved = stored?.[STATE_KEY] || {};
+    host.innerHTML = `
+      <div class="ykl-card">
+        <h3>Google Sheets do Yoka</h3>
+        <label class="ykl-label" for="ykl-global-api-url">URL da API</label>
+        <input id="ykl-global-api-url" type="text" value="${escapeHtml(saved.apiUrl || '')}" placeholder="https://script.google.com/macros/s/.../exec">
+        <label class="ykl-label" for="ykl-global-api-token" style="margin-top:7px">Chave da API</label>
+        <input id="ykl-global-api-token" type="password" value="${escapeHtml(saved.apiToken || '')}" placeholder="Chave da API">
+        <div class="ykl-row" style="margin-top:7px"><button id="ykl-global-api-test" class="ykl-btn ykl-grow" type="button">Testar conexão</button><button id="ykl-global-api-load" class="ykl-btn ykl-blue ykl-grow" type="button">Carregar atletas</button></div>
+        <div id="ykl-global-api-status" class="ykl-muted" style="margin-top:6px">Configuração salva neste Chrome.</div>
+      </div>`;
 
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local') return;
-      if (changes[STATE_KEY] || changes[CACHE_KEY]) {
-        dataset = null;
-        loadDataset(true).then(async data => {
-          const stored = await storageGet([STATE_KEY]);
-          selectedAthlete = currentStateAthlete(data, stored?.[STATE_KEY] || {}) || selectedAthlete;
-          if (selectedAthlete) {
-            const refreshed = data.athletes.find(item => item.athleteId === selectedAthlete.athleteId);
-            if (refreshed) selectedAthlete = refreshed;
-          }
-          renderSelectedAthlete();
-        }).catch(() => {});
+    const saveCredentials = async () => {
+      const current = (await storageGet([STATE_KEY]))?.[STATE_KEY] || {};
+      current.apiUrl = String($('#ykl-global-api-url', host)?.value || '').trim();
+      current.apiToken = String($('#ykl-global-api-token', host)?.value || '').trim();
+      await storageSet({ [STATE_KEY]: current });
+      dataset = null;
+      return current;
+    };
+
+    $('#ykl-global-api-url', host)?.addEventListener('change', saveCredentials);
+    $('#ykl-global-api-token', host)?.addEventListener('change', saveCredentials);
+    $('#ykl-global-api-test', host)?.addEventListener('click', async () => {
+      const status = $('#ykl-global-api-status', host);
+      try {
+        const current = await saveCredentials();
+        status.textContent = 'Testando conexão…';
+        await api(current, 'ping', {});
+        status.textContent = '✓ Conexão com a API funcionando.';
+        status.style.color = '#147a42';
+      } catch (error) {
+        status.textContent = error.message || String(error);
+        status.style.color = '#b42318';
+      }
+    });
+    $('#ykl-global-api-load', host)?.addEventListener('click', async () => {
+      const status = $('#ykl-global-api-status', host);
+      try {
+        await saveCredentials();
+        status.textContent = 'Carregando atletas…';
+        const data = await loadDataset(true);
+        const current = (await storageGet([STATE_KEY]))?.[STATE_KEY] || {};
+        current.headers = data.headers;
+        current.rows = data.rows;
+        current.serverStatuses = data.statuses || {};
+        current.dataSource = 'sheets';
+        current.availableCategories = collectCategories(data.rows, data.headers);
+        if (Number(current.currentIndex) >= data.rows.length) current.currentIndex = 0;
+        await storageSet({ [STATE_KEY]: current });
+        status.textContent = `✓ ${data.rows.length} atletas carregados.`;
+        status.style.color = '#147a42';
+      } catch (error) {
+        status.textContent = error.message || String(error);
+        status.style.color = '#b42318';
       }
     });
   }
 
-  init();
+  async function loadCurrentSelection() {
+    try {
+      const data = await loadDataset();
+      const stored = await storageGet([STATE_KEY]);
+      selectedAthlete = currentStateAthlete(data, stored?.[STATE_KEY] || {});
+      renderSelectedAthlete();
+    } catch { /* sem dados ainda */ }
+  }
+
+  function installObservers() {
+    const observer = new MutationObserver(() => {
+      integrateSyncPanel();
+      refreshContextualPlaceholders();
+    });
+    observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local' || (!changes[STATE_KEY] && !changes[CACHE_KEY])) return;
+      dataset = null;
+      loadCurrentSelection();
+    });
+  }
+
+  async function init() {
+    root = await obtainRoot();
+    body = $('.ykl-body', root);
+    if (!body) return;
+
+    captureLegacy();
+    buildShell();
+    refreshContextualPlaceholders();
+    integrateSyncPanel();
+    await loadCurrentSelection();
+    showTab(pageKind());
+    installObservers();
+  }
+
+  init().catch(error => console.error('[Importador Yoka] Falha ao montar painel unificado:', error));
 })();
