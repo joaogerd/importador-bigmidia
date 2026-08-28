@@ -33,6 +33,7 @@
       "js": [
         "content.js",
         "features-v148.js",
+        "bulk-files-v148.js",
         "default-icon-v148.js"
       ],
       "css": [
