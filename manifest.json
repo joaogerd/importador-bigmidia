@@ -37,6 +37,7 @@
         "league-registry-v149.js",
         "league-registry-sync-v149.js",
         "league-launcher-v149.js",
+        "register-unsynced-v149.js",
         "default-icon-v148.js",
         "compact-layout-v149.js"
       ],
