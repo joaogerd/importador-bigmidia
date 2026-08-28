@@ -4,7 +4,7 @@ Extensão Chrome do Yoka para auxiliar o cadastro e a correção de dados/docume
 
 ## Versão atual
 
-**v1.4.8**
+**v1.4.9**
 
 Página oficial de inclusão de atleta:
 
@@ -74,6 +74,30 @@ A partir da v1.4.4, a API devolve dinamicamente as colunas existentes na aba `At
 
 O backend dessa integração pertence ao projeto `cadastro-yoka`; este repositório contém a extensão Chrome.
 
+## Registros da Liga
+
+A partir da **v1.4.9**, a extensão consegue coletar retroativamente os números de registro dos atletas já cadastrados no BigMidia.
+
+Na página de listagem de atletas do BigMidia, a extensão identifica links no formato:
+
+`https://ligapaulistafutsal.bigmidia.com/atleta/update?id=19820`
+
+O coletor:
+
+1. extrai o `ID BigMidia` do link;
+2. lê os dados visíveis na linha do atleta;
+3. tenta associar ao cadastro do Yoka por **CPF**;
+4. se não houver CPF utilizável, tenta o **nome completo normalizado**;
+5. não grava correspondências ambíguas ou conflitantes;
+6. tenta avançar automaticamente pela paginação;
+7. envia as correspondências seguras em um único lote para o Apps Script.
+
+Os dados são gravados na aba `Cadastro BigMidia`, nas colunas **ID BigMidia** e **URL/Referência BigMidia**.
+
+Depois da sincronização, o atleta selecionado no painel mostra o registro da Liga e o botão **Abrir na Liga**, que leva diretamente para `/atleta/update?id=...`. A busca por nome também mostra `Liga #xxxxx` quando a referência está disponível.
+
+O backend v1.4.9 preserva essas referências quando o status ou a documentação do atleta forem atualizados posteriormente.
+
 ## Busca de atleta
 
 A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo foi criado principalmente para correções pontuais de documentação e dados depois que os cadastros iniciais já foram feitos.
@@ -82,15 +106,16 @@ A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo 
 - pesquisa em todos os atletas retornados pelo Google Sheets;
 - independe do filtro de categoria atual;
 - mostra categoria e status BigMidia quando disponíveis;
+- a partir da v1.4.9, mostra também o número da Liga quando sincronizado;
 - ao selecionar um resultado, aquele atleta passa a ser o atleta atual da extensão.
 
 ## Foto do atleta
 
-A v1.4.8 também incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
+A v1.4.8 incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
 
 A foto usa o mesmo padrão visual dos demais arquivos, com **Abrir**, **Baixar** e **Incluir**, e os estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**. Ela continua sendo tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
 
-O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em sequência, todos os itens que estiverem disponíveis para o atleta:
+O botão coletivo **Incluir todos os arquivos** processa, em sequência, todos os itens disponíveis para o atleta:
 
 1. Foto;
 2. RG;
@@ -99,21 +124,12 @@ O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em
 
 Cada item só começa depois que o anterior terminou. Em caso de erro, a extensão informa qual arquivo apresentou problema e evita mascarar a falha com uma mensagem geral de sucesso.
 
-Ao incluir a foto, a extensão:
-
-1. baixa o arquivo do Google Drive usando a sessão atual do Chrome;
-2. exige JPG/JPEG ou PNG;
-3. procura o campo de foto/imagem/avatar da tela atual do BigMidia;
-4. exclui da busca o campo de upload utilizado pelo modal de documentos;
-5. coloca o arquivo no campo encontrado e dispara os eventos do navegador;
-6. pede que o operador confira a prévia antes de salvar.
-
-Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve ser conferida visualmente antes de seguir em lote.
-
 ## Recursos atuais
 
 - carregamento de atletas pelo Google Sheets ou CSV;
 - busca de atleta pelo nome para correções pontuais;
+- sincronização dos números de registro da Liga a partir da listagem do BigMidia;
+- acesso direto ao cadastro de edição pelo `ID BigMidia`;
 - filtro de cadastro por categoria;
 - preenchimento assistido dos dados do atleta e responsável;
 - integração com consulta da RFB;
