@@ -3,15 +3,17 @@
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
 ## 1.4.9
-- Adiciona coleta dos números de registro da Liga a partir dos links `atleta/update?id=...` existentes na listagem do BigMidia.
-- Faz a correspondência com o cadastro do Yoka usando **CPF como prioridade** e **nome completo normalizado** como segunda opção.
-- Correspondências ambíguas, conflitos ou atletas não encontrados não são gravados automaticamente.
-- Tenta percorrer automaticamente a paginação da listagem, inclusive paginação por navegação de URL ou por JavaScript.
-- Sincroniza os resultados em lote para as colunas **ID BigMidia** e **URL/Referência BigMidia** da aba `Cadastro BigMidia`.
-- O backend passa a devolver também as referências BigMidia no `listAthletes`.
-- Atualizações normais de status/documentos passam a preservar uma referência BigMidia já existente.
-- O atleta selecionado no painel mostra `Registro Liga: #xxxxx` e ganha o botão **Abrir na Liga**.
-- Os resultados da busca por nome passam a mostrar `Liga #xxxxx` quando o registro já estiver sincronizado.
+- Adiciona captura retroativa dos números de registro da Liga a partir dos links `/atleta/update?id=...`.
+- A página `/atleta/index` passa a exibir um painel próprio de **Registros da Liga**.
+- O sincronizador usa todos os IDs já detectados no DOM da listagem; no BigMidia atual, os 171 registros ficam disponíveis de uma só vez e não exigem paginação automática.
+- Corrige o botão de sincronização para não depender de um `MutationObserver` que redesenhava o próprio painel e podia substituir o botão durante o clique.
+- O clique agora apresenta feedback imediato: **Iniciando…**, **Carregando atletas do Yoka…**, cruzamento e sincronização.
+- Cruza cada registro por CPF e, como fallback, por nome completo normalizado.
+- Correspondências ambíguas, conflitos e registros sem correspondência não são gravados automaticamente.
+- Envia as correspondências seguras em lote pela ação `syncBigMidiaReferences` do Apps Script 1.4.9.
+- Grava `ID BigMidia` e `URL/Referência BigMidia` sem alterar automaticamente o status do cadastro.
+- A busca passa a mostrar `Liga #xxxxx` quando o atleta já possui referência sincronizada.
+- Adiciona **Abrir na Liga** para abrir diretamente `/atleta/update?id=xxxxx`.
 
 ## 1.4.8
 - Adiciona **busca de atleta pelo nome** no painel principal para o fluxo de correção pontual de cadastros/documentos.
