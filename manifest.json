@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.4.7",
-  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do Google Sheets do Yoka ou CSV, com RFB, Drive, categoria, mapeamento persistente, retorno automático e notificações não bloqueantes.",
+  "version": "1.4.8",
+  "description": "Preenchimento assistido do cadastro da Liga Paulista a partir do Google Sheets do Yoka ou CSV, com busca por atleta, RFB, Drive, foto, categoria, mapeamento persistente e retorno automático.",
   "permissions": [
     "storage"
   ],
@@ -15,13 +15,26 @@
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon128.png"
+      ],
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/*"
+      ]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
         "https://ligapaulistafutsal.bigmidia.com/*"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "features-v148.js",
+        "bulk-files-v148.js",
+        "default-icon-v148.js"
       ],
       "css": [
         "styles.css"

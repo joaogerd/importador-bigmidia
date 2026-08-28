@@ -1,4 +1,4 @@
-# Importador Yoka — Liga Paulista v1.4.7
+# Importador Yoka — Liga Paulista v1.4.8
 
 Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atletas no BigMidia / Liga Paulista.
 
@@ -20,7 +20,7 @@ Extensão Chrome (Manifest V3) para preenchimento assistido do cadastro de atlet
 3. Clique em **Testar conexão**.
 4. Clique em **Carregar atletas**.
 5. Selecione o atleta e clique em **Preencher atleta**.
-6. Inclua os documentos e confira os dados.
+6. Inclua os arquivos e confira os dados.
 7. Clique manualmente em **Cadastrar** no BigMidia.
 8. A extensão tentará registrar a conclusão no Google Sheets quando a navegação confirmar que o formulário foi enviado.
 9. Se a confirmação automática não ocorrer, use **Registrar cadastrado e próximo**.
@@ -55,8 +55,7 @@ A API exige uma chave armazenada em `ScriptProperties`. A chave e a URL ficam no
 
 ## Observação
 
-O botão final **Cadastrar** continua manual. A automação preenche e envia documentos, mas a decisão final continua com o operador.
-
+O botão final **Cadastrar** continua manual. A automação preenche e envia arquivos, mas a decisão final continua com o operador.
 
 ## Correção 1.4.1
 - Detecta PDF/JPG/PNG pela assinatura real dos bytes baixados do Drive.
@@ -71,8 +70,17 @@ Endereço oficial usado para inclusão de atleta:
 
 No envio dos documentos, o arquivo de autorização do responsável deve ser cadastrado no BigMidia com o tipo exato **Termo Responsável (Menor de 18)**.
 
-
 ## Histórico recente
+
+### v1.4.8
+
+- Adiciona **Buscar atleta pelo nome** para correções pontuais.
+- Inclui **Foto** na área **Arquivos no Drive**, usando `Link da foto do atleta`.
+- Padroniza Foto, RG, Atestado e Autorização com **Abrir / Baixar / Incluir** e os mesmos estados visuais.
+- O botão coletivo passa a ser **Incluir todos os arquivos**.
+- A inclusão coletiva processa, em sequência, **Foto → RG → Atestado → Autorização** e aguarda cada item terminar antes de iniciar o seguinte.
+- Reutiliza os botões individuais e as rotinas de upload já testadas, sem duplicar a lógica de envio.
+- Se um item falhar, identifica o arquivo com problema e não mascara a falha com uma confirmação geral de sucesso.
 
 ### v1.4.7
 
@@ -97,6 +105,6 @@ No envio dos documentos, o arquivo de autorização do responsável deve ser cad
 
 - Adiciona filtro dinâmico **Cadastrar por categoria**.
 
-## Notificações sem bloqueio (v1.4.7)
+## Notificações sem bloqueio (v1.4.7+)
 
-As confirmações de conclusão do preenchimento e da inclusão de documentos não usam mais `alert()`. O painel mostra uma mensagem visual não bloqueante e libera os controles imediatamente, sem exigir clique no site para continuar.
+As confirmações de conclusão do preenchimento e da inclusão de arquivos não usam mais `alert()`. O painel mostra uma mensagem visual não bloqueante e libera os controles imediatamente, sem exigir clique no site para continuar.
