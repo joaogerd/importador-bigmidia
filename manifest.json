@@ -36,6 +36,7 @@
         "bulk-files-v148.js",
         "league-registry-v149.js",
         "league-registry-sync-v149.js",
+        "league-launcher-v149.js",
         "default-icon-v148.js"
       ],
       "css": [
