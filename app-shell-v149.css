@@ -1,63 +1,136 @@
 #ykl-root.ykl-unified-shell .ykl-body { padding-top: 8px; }
-#ykl-root.ykl-unified-shell .ykl-app-context {
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:0 2px 7px; color:#44515d; font-size:10px;
-}
-#ykl-root.ykl-unified-shell .ykl-app-context strong { color:#174a7e; font-size:10px; }
-#ykl-root.ykl-unified-shell .ykl-app-context-label { color:#7b8792; }
 
-#ykl-root.ykl-unified-shell .ykl-app-nav {
-  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px;
-  margin-bottom:9px; position:sticky; top:0; z-index:8; background:#fff; padding:2px 0 6px;
-}
-#ykl-root.ykl-unified-shell .ykl-app-nav button,
-#ykl-root.ykl-unified-shell .ykl-app-subtabs button {
-  min-width:0; border:1px solid #cfd6dd; border-radius:6px; background:#f8fafb;
-  color:#1f2d3a; padding:7px 3px; font-size:9px; font-weight:700; cursor:pointer;
-}
-#ykl-root.ykl-unified-shell .ykl-app-nav button.active,
-#ykl-root.ykl-unified-shell .ykl-app-subtabs button.active {
-  background:#174a7e; color:#fff; border-color:#174a7e;
+#ykl-root.ykl-unified-shell .ykl-global-context {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:0 2px 7px;
+  color:#7b8792;
+  font-size:10px;
 }
 
-#ykl-root.ykl-unified-shell .ykl-app-page { display:none; }
-#ykl-root.ykl-unified-shell .ykl-app-page.active { display:block; }
-#ykl-root.ykl-unified-shell .ykl-app-page.ykl-section { display:none; }
-#ykl-root.ykl-unified-shell .ykl-app-page.ykl-section.active { display:block; }
-
-#ykl-root.ykl-unified-shell .ykl-app-subtabs {
-  display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px;
+#ykl-root.ykl-unified-shell .ykl-global-context strong {
+  color:#174a7e;
+  font-size:10px;
 }
-#ykl-root.ykl-unified-shell .ykl-app-config-pane { display:none; }
-#ykl-root.ykl-unified-shell .ykl-app-config-pane.active { display:block; }
-#ykl-root.ykl-unified-shell .ykl-app-config-content { display:block !important; }
 
-#ykl-root.ykl-unified-shell .ykl-app-results {
-  margin-top:6px; max-height:235px; overflow:auto; border-top:1px solid #edf0f2; padding-top:6px;
+#ykl-root.ykl-unified-shell .ykl-global-nav {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:4px;
+  margin-bottom:9px;
+  position:sticky;
+  top:0;
+  z-index:8;
+  background:#fff;
+  padding:2px 0 6px;
 }
-#ykl-root.ykl-unified-shell .ykl-app-result {
-  width:100%; display:block; text-align:left; border:1px solid #dce2e8; border-radius:7px;
-  background:#fff; color:#17212b; margin:0 0 5px; padding:8px 9px; cursor:pointer;
-}
-#ykl-root.ykl-unified-shell .ykl-app-result:hover { border-color:#174a7e; background:#f7f9fb; }
-#ykl-root.ykl-unified-shell .ykl-app-result strong { display:block; font-size:11px; line-height:1.3; }
-#ykl-root.ykl-unified-shell .ykl-app-result span { display:block; margin-top:2px; font-size:9px; color:#64717d; line-height:1.35; }
-#ykl-root.ykl-unified-shell .ykl-app-selected-actions,
-#ykl-root.ykl-unified-shell .ykl-app-shortcuts {
-  display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;
-}
-#ykl-root.ykl-unified-shell .ykl-app-shortcuts { grid-template-columns:1fr 1fr 1fr; }
-#ykl-root.ykl-unified-shell .ykl-app-shortcuts .ykl-btn { padding:8px 5px; font-size:10px; }
-#ykl-root.ykl-unified-shell .ykl-app-success { color:#147a42 !important; font-weight:700; }
-#ykl-root.ykl-unified-shell .ykl-app-error { color:#b42318 !important; font-weight:700; }
-#ykl-root.ykl-unified-shell .ykl-app-placeholder .ykl-btn { margin-top:9px; }
-#ykl-root.ykl-unified-shell .ykl-app-embedded-panel { box-sizing:border-box; }
 
-#ykl-root.ykl-shell-standalone .ykl-body { min-height:160px; }
+#ykl-root.ykl-unified-shell .ykl-global-nav button,
+#ykl-root.ykl-unified-shell .ykl-global-config-tabs button {
+  min-width:0;
+  border:1px solid #cfd6dd;
+  border-radius:6px;
+  background:#f8fafb;
+  color:#1f2d3a;
+  padding:7px 3px;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
 
-@media (max-height: 900px) {
-  #ykl-root.ykl-unified-shell .ykl-app-context { padding-bottom:4px; }
-  #ykl-root.ykl-unified-shell .ykl-app-nav { margin-bottom:6px; padding-bottom:4px; }
-  #ykl-root.ykl-unified-shell .ykl-app-nav button { padding:6px 2px; font-size:8px; }
-  #ykl-root.ykl-unified-shell .ykl-app-results { max-height:180px; }
+#ykl-root.ykl-unified-shell .ykl-global-nav button.active,
+#ykl-root.ykl-unified-shell .ykl-global-config-tabs button.active {
+  background:#174a7e;
+  color:#fff;
+  border-color:#174a7e;
+}
+
+/* Somente as páginas novas do shell são controladas aqui.
+   As .ykl-section originais do content.js permanecem intactas. */
+#ykl-root.ykl-unified-shell .ykl-global-page { display:none; }
+#ykl-root.ykl-unified-shell .ykl-global-page.active { display:block; }
+
+#ykl-root.ykl-unified-shell .ykl-global-config-tabs {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px;
+  margin-bottom:8px;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-results {
+  margin-top:6px;
+  max-height:235px;
+  overflow:auto;
+  border-top:1px solid #edf0f2;
+  padding-top:6px;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-result {
+  width:100%;
+  display:block;
+  text-align:left;
+  border:1px solid #dce2e8;
+  border-radius:7px;
+  background:#fff;
+  color:#17212b;
+  margin:0 0 5px;
+  padding:8px 9px;
+  cursor:pointer;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-result:hover {
+  border-color:#174a7e;
+  background:#f7f9fb;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-result strong {
+  display:block;
+  font-size:11px;
+  line-height:1.3;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-result span {
+  display:block;
+  margin-top:2px;
+  font-size:9px;
+  color:#64717d;
+  line-height:1.35;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-selected-actions,
+#ykl-root.ykl-unified-shell .ykl-global-shortcuts {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:8px;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-shortcuts {
+  grid-template-columns:1fr 1fr 1fr;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-shortcuts .ykl-btn {
+  padding:8px 5px;
+  font-size:10px;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-placeholder .ykl-btn {
+  margin-top:9px;
+}
+
+#ykl-root.ykl-unified-shell .ykl-global-embedded-panel {
+  box-sizing:border-box;
+}
+
+#ykl-root.ykl-shell-standalone .ykl-body {
+  min-height:160px;
+}
+
+@media (max-height:900px) {
+  #ykl-root.ykl-unified-shell .ykl-global-context { padding-bottom:4px; }
+  #ykl-root.ykl-unified-shell .ykl-global-nav { margin-bottom:6px; padding-bottom:4px; }
+  #ykl-root.ykl-unified-shell .ykl-global-nav button { padding:6px 2px; font-size:8px; }
+  #ykl-root.ykl-unified-shell .ykl-global-results { max-height:180px; }
 }
