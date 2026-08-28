@@ -1,0 +1,39 @@
+name: Validate extension
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done < <(find . -maxdepth 1 -name '*.js' -print0 | sort -z)
+
+      - name: Validate manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'))"
+
+      - name: Validate version consistency
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const version = fs.readFileSync('VERSION', 'utf8').trim();
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          if (version !== manifest.version) {
+            console.error(`VERSION (${version}) differs from manifest (${manifest.version})`);
+            process.exit(1);
+          }
+          console.log(`Version ${version} is consistent.`);
+          NODE
