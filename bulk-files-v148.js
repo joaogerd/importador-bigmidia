@@ -165,6 +165,10 @@
     const button = original.cloneNode(true);
     button.dataset.yklBulkV148 = '1';
     button.textContent = 'Incluir todos os documentos';
+    // Ação de documentos usa a mesma identidade visual azul dos botões
+    // individuais "Incluir". O verde fica reservado para "Preencher atleta".
+    button.classList.remove('ykl-primary');
+    button.classList.add('ykl-blue');
     original.replaceWith(button);
     button.addEventListener('click', includeAllDocuments);
 
