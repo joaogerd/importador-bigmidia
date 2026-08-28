@@ -88,7 +88,7 @@ A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo 
 
 A v1.4.8 também incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
 
-A foto possui ações próprias de **Abrir**, **Baixar** e **Incluir foto**. Ela é tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
+A foto usa o mesmo padrão visual dos demais arquivos do painel: **Abrir**, **Baixar** e **Incluir**, com os mesmos estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**. Ela é tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
 
 Ao incluir a foto, a extensão:
 
@@ -97,7 +97,7 @@ Ao incluir a foto, a extensão:
 3. procura o campo de foto/imagem/avatar da tela atual do BigMidia;
 4. exclui da busca o campo de upload utilizado pelo modal de documentos;
 5. coloca o arquivo no campo encontrado e dispara os eventos do navegador;
-6. pede que o operador confira a prévia antes de salvar.
+6. mostra a confirmação usando o mesmo aviso não bloqueante do restante do painel.
 
 Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve ser conferida visualmente antes de seguir em lote.
 
