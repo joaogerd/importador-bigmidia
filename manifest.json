@@ -15,6 +15,16 @@
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/icon128.png"
+      ],
+      "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/*"
+      ]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
