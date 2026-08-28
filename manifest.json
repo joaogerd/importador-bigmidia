@@ -37,10 +37,12 @@
         "league-registry-v149.js",
         "league-registry-sync-v149.js",
         "league-launcher-v149.js",
-        "default-icon-v148.js"
+        "default-icon-v148.js",
+        "compact-layout-v149.js"
       ],
       "css": [
-        "styles.css"
+        "styles.css",
+        "compact-layout-v149.css"
       ],
       "run_at": "document_idle"
     }
