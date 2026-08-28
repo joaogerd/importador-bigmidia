@@ -88,9 +88,7 @@
     const status = $(item.status);
     if (!button || !status) throw new Error(`${item.label}: controles não encontrados.`);
 
-    await waitFor(() => !button.disabled || statusHasLink(status), 5000, 100);
-    if (button.disabled) throw new Error(`${item.label}: botão Incluir indisponível.`);
-
+    await waitFor(() => !button.disabled, 5000, 100);
     button.click();
 
     await waitFor(() => {
