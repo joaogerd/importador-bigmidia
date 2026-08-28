@@ -88,7 +88,16 @@ A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo 
 
 A v1.4.8 também incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
 
-A foto usa o mesmo padrão visual dos demais arquivos do painel: **Abrir**, **Baixar** e **Incluir**, com os mesmos estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**. Ela é tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
+A foto usa o mesmo padrão visual dos demais arquivos, com **Abrir**, **Baixar** e **Incluir**, e os estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**. Ela continua sendo tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
+
+O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em sequência, todos os itens que estiverem disponíveis para o atleta:
+
+1. Foto;
+2. RG;
+3. Atestado;
+4. Autorização.
+
+Cada item só começa depois que o anterior terminou. Em caso de erro, a extensão informa qual arquivo apresentou problema e evita mascarar a falha com uma mensagem geral de sucesso.
 
 Ao incluir a foto, a extensão:
 
@@ -97,7 +106,7 @@ Ao incluir a foto, a extensão:
 3. procura o campo de foto/imagem/avatar da tela atual do BigMidia;
 4. exclui da busca o campo de upload utilizado pelo modal de documentos;
 5. coloca o arquivo no campo encontrado e dispara os eventos do navegador;
-6. mostra a confirmação usando o mesmo aviso não bloqueante do restante do painel.
+6. pede que o operador confira a prévia antes de salvar.
 
 Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve ser conferida visualmente antes de seguir em lote.
 
@@ -110,6 +119,7 @@ Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve se
 - integração com consulta da RFB;
 - download e inclusão assistida de RG, atestado e termo do Google Drive;
 - inclusão assistida da foto do atleta a partir do Drive;
+- inclusão coletiva de **Foto + RG + Atestado + Autorização** pelo botão **Incluir todos os arquivos**;
 - `Autorização` cadastrada como **Termo Responsável (Menor de 18)**;
 - mapeamento manual persistente, inclusive campos definidos como **— não preencher —**;
 - correção do campo **Tipo Logradouro**;
