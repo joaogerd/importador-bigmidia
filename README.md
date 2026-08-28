@@ -51,12 +51,13 @@ A v1.4.8 incorporou a coluna **`Link da foto do atleta`** ao painel de arquivos.
 
 A seção **Arquivos no Drive** usa o mesmo padrão para Foto, RG, Atestado e Autorização, com **Abrir**, **Baixar** e **Incluir**, e os estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**.
 
-O botão **Incluir todos os arquivos** processa em sequência:
+Na v1.4.9, a **Foto é opcional** e permanece somente no fluxo individual. O botão coletivo volta a se chamar **Incluir todos os documentos** e processa em sequência apenas:
 
-1. Foto;
-2. RG;
-3. Atestado;
-4. Autorização.
+1. RG;
+2. Atestado;
+3. Autorização.
+
+Se houver foto disponível, ela pode ser incluída separadamente pelo botão **Incluir** da própria linha.
 
 ## Registros da Liga — v1.4.9
 
@@ -85,7 +86,8 @@ Depois de sincronizado, o painel de busca passa a mostrar **Liga #XXXXX** e o at
 - preenchimento assistido dos dados do atleta e responsável;
 - integração com consulta da RFB;
 - inclusão assistida de Foto, RG, Atestado e Autorização;
-- inclusão coletiva de todos os arquivos disponíveis;
+- inclusão coletiva de **RG + Atestado + Autorização**;
+- foto opcional, incluída somente quando desejado;
 - sincronização dos números de registro da Liga;
 - acesso direto ao cadastro de edição do atleta pelo ID BigMidia;
 - mapeamento manual persistente;
