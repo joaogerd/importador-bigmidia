@@ -8,6 +8,7 @@
   let searchDataset = null;
   let searchDatasetPromise = null;
   let photoBusy = false;
+  let noticeTimer = null;
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -256,7 +257,7 @@
     }
 
     box.hidden = false;
-    box.innerHTML = '<div class="ykl-v148-empty">Buscando atletas…</div>';
+    box.innerHTML = '<div class="ykl-v148-empty">Buscando atletas...</div>';
     try {
       const dataset = await loadSearchDataset();
       renderSearchResults(query, dataset);
@@ -274,7 +275,7 @@
 
     const card = document.createElement('div');
     card.id = 'ykl-v148-search-card';
-    card.className = 'ykl-card ykl-v148-search-card';
+    card.className = 'ykl-card';
     card.innerHTML = `
       <label class="ykl-label" for="ykl-v148-athlete-search">Buscar atleta pelo nome</label>
       <input id="ykl-v148-athlete-search" type="search" autocomplete="off" placeholder="Digite pelo menos 2 letras">
@@ -289,7 +290,7 @@
       clearTimeout(timer);
       timer = setTimeout(() => onSearchInput(event), 180);
     });
-    input.addEventListener('focus', async event => {
+    input.addEventListener('focus', event => {
       if (normalize(event.target.value).length >= SEARCH_MIN_CHARS) onSearchInput(event);
     });
     $('#ykl-v148-search-results').addEventListener('click', event => {
@@ -317,31 +318,45 @@
   }
 
   function normalizeExternalUrl(raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
     try {
-      const url = new URL(String(raw || '').trim());
+      const url = new URL(value);
       return /^https?:$/.test(url.protocol) ? url.href : '';
     } catch {
       return '';
     }
   }
 
-  function openPhoto(url, download = false) {
-    const normalizedUrl = normalizeExternalUrl(url);
-    if (!normalizedUrl) return;
-    if (!download) {
-      window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+  function driveFileId(raw) {
+    const url = normalizeExternalUrl(raw);
+    if (!url) return '';
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/,
+      /[?&]id=([a-zA-Z0-9_-]+)/,
+      /\/d\/([a-zA-Z0-9_-]+)/
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return '';
+  }
+
+  function driveDownloadUrl(raw) {
+    const url = normalizeExternalUrl(raw);
+    if (!url) return '';
+    const id = driveFileId(url);
+    return id ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}` : url;
+  }
+
+  function openPhoto(raw, download = false) {
+    const url = download ? driveDownloadUrl(raw) : normalizeExternalUrl(raw);
+    if (!url) {
+      showPanelNotice('Foto: este atleta não possui um link válido.', 'error', 0);
       return;
     }
-    try {
-      const parsed = new URL(normalizedUrl);
-      const match = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-      const id = match?.[1] || parsed.searchParams.get('id');
-      if (id && parsed.hostname.includes('drive.google.com')) {
-        window.open(`https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download&confirm=t`, '_blank', 'noopener,noreferrer');
-        return;
-      }
-    } catch { /* abre link original */ }
-    window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function base64ToBytes(value) {
@@ -370,6 +385,7 @@
           finish(reject, new Error(chrome.runtime.lastError.message));
         }
       });
+
       port.onMessage.addListener(message => {
         if (message?.type === 'meta') {
           meta = message;
@@ -384,7 +400,7 @@
           return;
         }
         if (message?.type === 'done') {
-          if (!meta) return finish(reject, new Error('O download da foto terminou sem metadados.'));
+          if (!meta) return finish(reject, new Error('O download terminou sem informações do arquivo.'));
           const total = chunks.reduce((sum, part) => sum + (part?.length || 0), 0);
           const bytes = new Uint8Array(total);
           let offset = 0;
@@ -396,6 +412,7 @@
           finish(resolve, { ...meta, bytes });
         }
       });
+
       port.postMessage({ type: 'fetch-document', url, fallbackName });
     });
   }
@@ -435,11 +452,30 @@
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function showPhotoStatus(text, kind = '') {
+  function showPanelNotice(message, kind = 'info', timeout = 7000) {
+    const el = $('#ykl-notice');
+    if (!el) return;
+    if (noticeTimer) {
+      clearTimeout(noticeTimer);
+      noticeTimer = null;
+    }
+    el.textContent = message;
+    el.className = `ykl-notice ykl-notice-${kind} ykl-notice-visible`;
+    el.removeAttribute('hidden');
+    if (timeout > 0) {
+      noticeTimer = setTimeout(() => {
+        el.classList.remove('ykl-notice-visible');
+        el.setAttribute('hidden', '');
+        noticeTimer = null;
+      }, timeout);
+    }
+  }
+
+  function setPhotoStatus(text, kind = '') {
     const status = $('#ykl-v148-photo-status');
     if (!status) return;
     status.textContent = text;
-    status.className = `ykl-doc-status ykl-v148-photo-status ${kind ? `ykl-v148-${kind}` : ''}`;
+    status.className = `ykl-doc-status ${kind ? `ykl-doc-${kind}` : ''}`;
   }
 
   async function refreshPhotoRow() {
@@ -450,48 +486,61 @@
     const download = $('#ykl-v148-photo-download');
     const include = $('#ykl-v148-photo-include');
     if (!open || !download || !include) return;
+
     open.disabled = !has || photoBusy;
     download.disabled = !has || photoBusy;
     include.disabled = !has || photoBusy;
-    if (!photoBusy) showPhotoStatus(has ? 'Foto disponível no Drive' : 'Sem link da foto');
+
+    if (!photoBusy) {
+      setPhotoStatus(has ? 'Link disponível' : 'Sem link', has ? 'ok' : '');
+    }
   }
 
   async function includePhoto() {
     if (photoBusy) return;
+
     const saved = await getStoredState();
-    const url = currentPhotoUrl(saved);
-    const normalizedUrl = normalizeExternalUrl(url);
+    const normalizedUrl = normalizeExternalUrl(currentPhotoUrl(saved));
     if (!normalizedUrl) {
-      showPhotoStatus('Este atleta não possui link de foto no Google Sheets.', 'error');
+      setPhotoStatus('Sem link');
+      showPanelNotice('Foto: este atleta não possui um link válido.', 'error', 0);
       return;
     }
 
     const input = findPhotoInput();
     if (!input) {
-      showPhotoStatus('Não encontrei automaticamente o campo de foto nesta tela do BigMidia.', 'error');
+      setPhotoStatus('Erro', 'error');
+      showPanelNotice('Foto: não encontrei automaticamente o campo de foto nesta tela do BigMidia.', 'error', 0);
       return;
     }
 
     photoBusy = true;
     await refreshPhotoRow();
-    showPhotoStatus('Baixando foto do Drive…');
+    setPhotoStatus('Baixando...', 'working');
+
     try {
       const downloaded = await fetchDriveFile(normalizedUrl, 'Foto do atleta');
-      if (!['image/jpeg', 'image/png'].includes(String(downloaded.mimeType || '').toLowerCase())) {
+      const mimeType = String(downloaded.mimeType || '').toLowerCase();
+      if (!['image/jpeg', 'image/png'].includes(mimeType)) {
         throw new Error('A foto precisa estar em JPG/JPEG ou PNG.');
       }
-      const extension = downloaded.mimeType === 'image/png' ? '.png' : '.jpg';
+
+      const extension = mimeType === 'image/png' ? '.png' : '.jpg';
       let filename = String(downloaded.filename || 'foto-atleta').trim() || 'foto-atleta';
       filename = filename.replace(/\.(pdf|jpe?g|png)$/i, '') + extension;
       const file = new File([downloaded.bytes], filename, {
-        type: downloaded.mimeType,
+        type: mimeType,
         lastModified: Date.now()
       });
+
       dispatchFile(input, file);
       await new Promise(resolve => setTimeout(resolve, 650));
-      showPhotoStatus(`✓ Foto selecionada: ${filename}. Confira a prévia no BigMidia antes de salvar.`, 'success');
+
+      setPhotoStatus('Incluído', 'success');
+      showPanelNotice('✓ Foto incluída. Você pode continuar o cadastro imediatamente.', 'success', 7000);
     } catch (error) {
-      showPhotoStatus(`Erro: ${error.message}`, 'error');
+      setPhotoStatus('Erro', 'error');
+      showPanelNotice(`Foto: ${error.message}`, 'error', 0);
     } finally {
       photoBusy = false;
       const current = await getStoredState();
@@ -509,36 +558,41 @@
     if ($('#ykl-v148-photo-row')) return;
     const docCard = $('.ykl-doc-card');
     if (!docCard) return;
+
     const heading = $('h3', docCard);
-    if (heading && normalize(heading.textContent).includes('documentos')) heading.textContent = 'Arquivos no Drive';
+    if (heading && normalize(heading.textContent).includes('documentos')) {
+      heading.textContent = 'Arquivos no Drive';
+    }
 
     const firstDocRow = $('.ykl-doc-row', docCard);
     const row = document.createElement('div');
     row.id = 'ykl-v148-photo-row';
-    row.className = 'ykl-doc-row ykl-v148-photo-row';
+    row.className = 'ykl-doc-row';
     row.innerHTML = `
       <span>
-        <strong>Foto do atleta</strong>
-        <small id="ykl-v148-photo-status" class="ykl-doc-status ykl-v148-photo-status">Verificando…</small>
+        <strong>Foto</strong>
+        <small id="ykl-v148-photo-status" class="ykl-doc-status">Sem link</small>
       </span>
       <div>
         <button id="ykl-v148-photo-open" class="ykl-btn" type="button">Abrir</button>
         <button id="ykl-v148-photo-download" class="ykl-btn" type="button">Baixar</button>
-        <button id="ykl-v148-photo-include" class="ykl-btn ykl-blue" type="button">Incluir foto</button>
+        <button id="ykl-v148-photo-include" class="ykl-btn ykl-blue" type="button">Incluir</button>
       </div>
     `;
+
     if (firstDocRow) firstDocRow.before(row);
     else docCard.appendChild(row);
 
     $('#ykl-v148-photo-open').addEventListener('click', async () => {
-      const saved = await getStoredState();
-      openPhoto(currentPhotoUrl(saved), false);
+      const current = await getStoredState();
+      openPhoto(currentPhotoUrl(current), false);
     });
     $('#ykl-v148-photo-download').addEventListener('click', async () => {
-      const saved = await getStoredState();
-      openPhoto(currentPhotoUrl(saved), true);
+      const current = await getStoredState();
+      openPhoto(currentPhotoUrl(current), true);
     });
     $('#ykl-v148-photo-include').addEventListener('click', includePhoto);
+
     refreshPhotoRow();
   }
 
@@ -547,21 +601,11 @@
     const style = document.createElement('style');
     style.id = 'ykl-v148-styles';
     style.textContent = `
-      .ykl-v148-search-card { position: relative; }
-      #ykl-v148-athlete-search {
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid #cbd5e1;
-        border-radius: 7px;
-        padding: 8px 9px;
-        font: inherit;
-        background: #fff;
-      }
       .ykl-v148-search-results {
         margin-top: 7px;
         max-height: 250px;
         overflow-y: auto;
-        border: 1px solid #dbe3ec;
+        border: 1px solid #dce2e7;
         border-radius: 7px;
         background: #fff;
       }
@@ -571,20 +615,27 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 2px;
-        padding: 8px 9px;
+        padding: 7px 8px;
         border: 0;
-        border-bottom: 1px solid #edf2f7;
+        border-bottom: 1px solid #edf0f2;
         background: #fff;
         text-align: left;
         cursor: pointer;
         color: inherit;
+        font: inherit;
       }
       .ykl-v148-result:last-child { border-bottom: 0; }
-      .ykl-v148-result:hover, .ykl-v148-result:focus { background: #f1f5f9; outline: none; }
-      .ykl-v148-result span, .ykl-v148-empty { font-size: 11px; color: #64748b; }
-      .ykl-v148-empty { padding: 8px 9px; }
-      .ykl-v148-photo-status.ykl-v148-success { color: #16803d; }
-      .ykl-v148-photo-status.ykl-v148-error { color: #b42318; }
+      .ykl-v148-result:hover,
+      .ykl-v148-result:focus {
+        background: #f8fafb;
+        outline: none;
+      }
+      .ykl-v148-result span,
+      .ykl-v148-empty {
+        font-size: 11px;
+        color: #64717d;
+      }
+      .ykl-v148-empty { padding: 7px 8px; }
     `;
     document.head.appendChild(style);
   }
@@ -592,11 +643,13 @@
   function observeAthleteChanges() {
     const name = $('#ykl-athlete-name');
     if (!name) return;
+
     new MutationObserver(() => refreshPhotoRow()).observe(name, {
       subtree: true,
       characterData: true,
       childList: true
     });
+
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local' || !changes[STORAGE_KEY]) return;
       refreshPhotoRow();
