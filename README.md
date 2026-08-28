@@ -35,7 +35,19 @@ A partir da v1.4.4, a API devolve dinamicamente as colunas existentes na aba `At
 
 O backend dessa integração pertence ao projeto `cadastro-yoka`; este repositório contém a extensão Chrome.
 
-## Busca de atleta
+## Popup da extensão — v1.4.9
+
+Ao abrir a extensão pelo ícone do Chrome, o popup funciona como lançador do trabalho no BigMidia:
+
+- **Novo cadastro** abre `/atleta/create` na aba atual;
+- **Buscar atleta para editar** pesquisa pelo nome diretamente nos atletas do Yoka;
+- atletas com `ID BigMidia` sincronizado mostram `Liga #XXXXX` e abrem diretamente `/atleta/update?id=XXXXX`;
+- atletas ainda sem ID aparecem como **Registro da Liga não sincronizado** e não são abertos automaticamente;
+- **Abrir lista de atletas da Liga** leva para `/atleta/index`.
+
+A busca tenta usar a API do Yoka e, em caso de indisponibilidade transitória, reaproveita atletas e referências já carregados no armazenamento local quando disponíveis.
+
+## Busca de atleta no painel
 
 A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome** para correções pontuais de documentação e dados.
 
@@ -81,7 +93,8 @@ Depois de sincronizado, o painel de busca passa a mostrar **Liga #XXXXX** e o at
 ## Recursos atuais
 
 - carregamento de atletas pelo Google Sheets ou CSV;
-- busca de atleta pelo nome;
+- busca de atleta pelo nome no painel e no popup;
+- acesso direto à edição pelo `ID BigMidia`;
 - filtro por categoria;
 - preenchimento assistido dos dados do atleta e responsável;
 - integração com consulta da RFB;
@@ -89,7 +102,6 @@ Depois de sincronizado, o painel de busca passa a mostrar **Liga #XXXXX** e o at
 - inclusão coletiva de **RG + Atestado + Autorização**;
 - foto opcional, incluída somente quando desejado;
 - sincronização dos números de registro da Liga;
-- acesso direto ao cadastro de edição do atleta pelo ID BigMidia;
 - mapeamento manual persistente;
 - atualização de status na aba `Cadastro BigMidia`;
 - notificações não bloqueantes;
