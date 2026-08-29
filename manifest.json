@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Assistente operacional do Yoka para cadastro, documentos, atletas, registros da Liga, transferências e configurações independentes da página atual.",
   "permissions": [
     "storage"
@@ -40,6 +40,7 @@
         "default-icon-v148.js",
         "mapping-catalog-v150.js",
         "app-shell-v150.js",
+        "segments-v151.js",
         "config-v150.js",
         "compact-layout-v149.js"
       ],
@@ -56,6 +57,7 @@
       ],
       "js": [
         "app-shell-v150.js",
+        "segments-v151.js",
         "config-v150.js",
         "league-registry-sync-v149.js",
         "compact-layout-v149.js"
@@ -73,6 +75,7 @@
       ],
       "js": [
         "app-shell-v150.js",
+        "segments-v151.js",
         "config-v150.js",
         "transfer-v149.js",
         "compact-layout-v149.js"
@@ -96,6 +99,7 @@
       ],
       "js": [
         "app-shell-v150.js",
+        "segments-v151.js",
         "config-v150.js",
         "compact-layout-v149.js"
       ],
