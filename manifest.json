@@ -79,7 +79,8 @@
         "app-shell-v150.js",
         "config-v150.js",
         "transfer-v149.js",
-        "compact-layout-v149.js"
+        "compact-layout-v149.js",
+        "photo-batch-return-v150.js"
       ],
       "css": [
         "styles.css",
@@ -101,7 +102,8 @@
       "js": [
         "app-shell-v150.js",
         "config-v150.js",
-        "compact-layout-v149.js"
+        "compact-layout-v149.js",
+        "photo-batch-return-v150.js"
       ],
       "css": [
         "styles.css",
