@@ -42,13 +42,15 @@
         "app-shell-v150.js",
         "config-v150.js",
         "compact-layout-v149.js",
-        "photo-batch-v150.js"
+        "photo-batch-v150.js",
+        "lpf-audit-v150.js"
       ],
       "css": [
         "styles.css",
         "app-shell-v150.css",
         "compact-layout-v149.css",
-        "photo-batch-v150.css"
+        "photo-batch-v150.css",
+        "lpf-audit-v150.css"
       ],
       "run_at": "document_idle"
     },
@@ -61,13 +63,15 @@
         "config-v150.js",
         "league-registry-sync-v149.js",
         "compact-layout-v149.js",
-        "photo-batch-v150.js"
+        "photo-batch-v150.js",
+        "lpf-audit-v150.js"
       ],
       "css": [
         "styles.css",
         "app-shell-v150.css",
         "compact-layout-v149.css",
-        "photo-batch-v150.css"
+        "photo-batch-v150.css",
+        "lpf-audit-v150.css"
       ],
       "run_at": "document_idle"
     },
