@@ -22,6 +22,7 @@ Essa arquitetura também fazia o painel crescer por adição de funcionalidades:
 - **Descobrir o esquema de campos** — precisa inspecionar os IDs/labels do formulário da Liga. Essa descoberta é feita uma vez e o catálogo é persistido.
 - **Sincronizar IDs da Liga** — precisa da listagem `/atleta/index`, onde os links/IDs estão disponíveis.
 - **Selecionar atleta para transferência** — precisa de `/bid/create`, do modal `#selAtleta`, da busca `#generalSearchAtl` e da tabela da BigMidia.
+- **Conferência documental LPF** — a marcação do resultado é persistente, mas a validação precisa da página `/atleta/update?id=...` para que o operador confira visualmente foto e documentos existentes no cadastro.
 
 ### Não dependem de uma página específica
 
@@ -94,35 +95,79 @@ A escolha por cards + drill-down foi preferida a tabs horizontais ou dropdown po
 
 Não foi criado mapeamento por categoria porque o formulário-alvo da BigMidia usa o mesmo esquema de campos para todas as categorias. Criar perfis por categoria adicionaria complexidade sem uma diferença técnica de destino.
 
-## Manutenção em lote de fotos
+## Atualização de fotos em sequência
 
-Atualizar somente as fotos é uma tarefa operacional diferente de cadastrar um atleta completo. Por isso, o comportamento da foto não é alterado globalmente.
+A atualização exclusiva de fotos é tratada como um **modo operacional opt-in**, separado do cadastro normal.
 
-Na visualização de uma categoria, o usuário pode iniciar explicitamente **Atualizar fotos em sequência**. A sessão persiste em `yklPhotoBatchV150` e mantém:
+Na categoria, a extensão pode iniciar uma fila somente com atletas que possuem registro da Liga e foto no Drive. A fila é persistida entre páginas e usa a ordem alfabética da categoria.
 
-- categoria;
-- fila alfabética dos atletas elegíveis;
-- posição atual;
-- atletas salvos e pulados;
-- estado de avanço após o salvamento da BigMidia.
+Durante a edição ficam disponíveis:
 
-Entram na fila apenas atletas que possuem simultaneamente:
+- progresso da fila;
+- **Ir para Salvar**;
+- **Salvar e próximo**;
+- **Pular**;
+- **Encerrar**.
 
-- número de registro da Liga sincronizado;
-- link de foto disponível no Drive.
+O retorno pós-salvamento é tratado mesmo quando a BigMidia redireciona para uma rota genérica, usando um bridge leve carregado fora das páginas de edição/listagem.
 
-Durante a edição, o painel mostra o progresso da sessão e as ações:
+Fora desse modo, incluir uma foto não salva nem avança automaticamente.
 
-- **Ir para Salvar** — apenas desloca a página até o botão nativo da BigMidia;
-- **Salvar e próximo** — ação explícita do usuário que salva a edição e prepara o avanço;
-- **Pular** — avança sem salvar o atleta atual;
-- **Encerrar** — termina a sessão e retorna à categoria.
+## Conferência documental LPF
 
-Quando um salvamento de edição retorna com sucesso à listagem `/atleta/index`, a extensão abre automaticamente o próximo atleta da fila. Ao final, retorna à mesma categoria e exibe um resumo.
+A preparação da planilha oficial da Liga é tratada como outro modo operacional específico, separado tanto do cadastro completo quanto da atualização de fotos.
 
-A categoria escolhida também é preservada entre navegações, evitando que a interface volte para a visão inicial após cada edição.
+### Objetivo
 
-Esse modo é opt-in e não altera o fluxo normal de cadastro. Em especial, incluir uma foto fora de uma sessão de fotos não salva nem avança automaticamente. O cadastro final de um novo atleta continua manual.
+Permitir abrir todos os cadastros de uma categoria, conferir visualmente a documentação já existente na BigMidia e registrar o resultado sem obrigar o operador a retornar à listagem e procurar manualmente o próximo atleta.
+
+### Itens conferidos
+
+O resultado segue exatamente as colunas da planilha oficial utilizada pela Liga:
+
+- QTD;
+- Nome completo;
+- Data cadastro;
+- Foto;
+- RG;
+- Atestado;
+- Autorização de menor.
+
+A **Data cadastro** é capturada automaticamente do texto `Criado em:` da página de edição. Foto, RG, Atestado e Autorização são sempre validados manualmente: a simples existência de link ou arquivo não significa que o documento esteja correto.
+
+### Estados
+
+Cada documento possui dois estados explícitos:
+
+- **OK**;
+- **Pendência**.
+
+Enquanto algum dos quatro itens estiver sem marcação, o atleta não pode ser finalizado na conferência.
+
+### Fluxo
+
+Na categoria aparece o card **Conferência LPF** com progresso e pendências.
+
+Ao iniciar/continuar:
+
+1. abre o primeiro atleta ainda não conferido da categoria;
+2. mostra progresso `N de total`;
+3. permite marcar os quatro itens individualmente ou usar **Tudo OK**;
+4. oferece atalho **Ir para documentos**;
+5. **Salvar conferência e próximo** persiste o resultado localmente e abre diretamente o próximo `/atleta/update?id=...`;
+6. **Anterior**, **Pular** e **Encerrar** dão controle manual da fila.
+
+Não existe clique automático no `Salvar` da BigMidia nesse modo, porque a conferência não altera o cadastro.
+
+### Planilha oficial
+
+Os resultados são armazenados em `chrome.storage.local` na chave `yklLpfAuditV150` e sobrevivem à navegação entre atletas.
+
+A extensão libera **Copiar para planilha LPF** somente quando todos os atletas considerados na seleção estão conferidos, sem pendências e com data de cadastro detectada.
+
+O conteúdo copiado usa sete colunas tabuladas, na ordem da planilha oficial. O operador abre o arquivo da Liga, seleciona a primeira célula de dados (B5 no modelo recebido) e cola. Assim a formatação, validações e estrutura do arquivo oficial permanecem intactas.
+
+A visão geral também apresenta grupos KIDS (Sub-7 a Sub-10) e JUNIOR (Sub-11, Sub-13, Sub-15 e Sub-17) para acompanhar o progresso agregado.
 
 ## Responsividade
 
@@ -155,7 +200,7 @@ Listas extensas (atletas e mapeamento) possuem áreas internas de scroll, evitan
 ## Hierarquia visual
 
 - azul: navegação/ações contextuais da Liga;
-- verde: ação primária de preenchimento do cadastro;
+- verde: ação primária de preenchimento do cadastro ou finalização da conferência atual;
 - vermelho: interrupção/ações destrutivas;
 - botões neutros: navegação e ações secundárias.
 
