@@ -2,6 +2,41 @@
   display: block;
 }
 
+/*
+ * Invariante responsiva do Cadastro:
+ * quando o JS detecta pouca altura útil ou conteúdo maior que o painel,
+ * as ações críticas ficam presas ao rodapé do próprio painel.
+ */
+#ykl-root.ykl-action-docked .ykl-body {
+  padding-bottom: 126px;
+}
+
+#ykl-root.ykl-action-docked .ykl-action-dock {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 30;
+  padding: 7px;
+  border: 1px solid #dce2e7;
+  border-radius: 9px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 -6px 18px rgba(23,33,43,.12);
+}
+
+#ykl-root.ykl-action-docked .ykl-action-dock > #ykl-fill {
+  margin: 0 0 5px;
+}
+
+#ykl-root.ykl-action-docked .ykl-action-dock .ykl-row {
+  margin: 4px 0 0;
+}
+
+#ykl-root.ykl-action-docked .ykl-action-dock .ykl-btn {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
 @media (max-height: 900px) {
   #ykl-root.ykl-compact-height {
     top: 8px;
@@ -29,11 +64,15 @@
 
   #ykl-root.ykl-compact-height .ykl-body {
     padding: 8px;
-    padding-bottom: 126px;
     max-height: calc(100vh - 62px);
   }
 
-  #ykl-root.ykl-compact-height .ykl-tabs {
+  #ykl-root.ykl-compact-height.ykl-action-docked .ykl-body {
+    padding-bottom: 126px;
+  }
+
+  #ykl-root.ykl-compact-height .ykl-tabs,
+  #ykl-root.ykl-compact-height .ykl-v150-nav {
     position: sticky;
     top: -8px;
     z-index: 12;
@@ -104,39 +143,13 @@
     display: none;
   }
 
-  #ykl-root.ykl-compact-height .ykl-action-dock {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    z-index: 30;
-    padding: 7px;
-    border: 1px solid #dce2e7;
-    border-radius: 9px;
-    background: rgba(255,255,255,.98);
-    box-shadow: 0 -6px 18px rgba(23,33,43,.12);
-  }
-
-  #ykl-root.ykl-compact-height .ykl-action-dock > #ykl-fill {
-    margin: 0 0 5px;
-  }
-
-  #ykl-root.ykl-compact-height .ykl-action-dock .ykl-row {
-    margin: 4px 0 0;
-  }
-
-  #ykl-root.ykl-compact-height .ykl-action-dock .ykl-btn {
-    padding-top: 7px;
-    padding-bottom: 7px;
-  }
-
   #ykl-root.ykl-compact-height .ykl-log {
     height: 72px;
   }
 }
 
 @media (max-height: 760px) {
-  #ykl-root.ykl-very-compact-height .ykl-body {
+  #ykl-root.ykl-very-compact-height.ykl-action-docked .ykl-body {
     padding-bottom: 116px;
   }
 
