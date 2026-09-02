@@ -67,7 +67,8 @@
         "photo-batch-v150.js",
         "lpf-audit-v150.js",
         "lpf-audit-click-fix-v150.js",
-        "lpf-audit-return-v150.js"
+        "lpf-audit-return-v150.js",
+        "lpf-audit-export-v150.js"
       ],
       "css": [
         "styles.css",
