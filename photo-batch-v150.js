@@ -167,8 +167,7 @@
     }
   }
 
-  async function clearUpdatePendingRegistration() {
-    if (!pathIs('/atleta/update')) return;
+  async function clearPendingRegistration() {
     const stored = await get([STATE_KEY]);
     const saved = stored?.[STATE_KEY] || {};
     if (!saved.pendingRegistration) return;
@@ -255,13 +254,24 @@
       const exclusions = [];
       if (info.missingLeague) exclusions.push(`${info.missingLeague} sem registro`);
       if (info.missingPhoto) exclusions.push(`${info.missingPhoto} sem foto`);
+      const signature = JSON.stringify({
+        category,
+        eligible: info.eligible.length,
+        missingLeague: info.missingLeague,
+        missingPhoto: info.missingPhoto,
+        activeHere,
+        batchIndex: activeHere ? Number(batch.currentIndex) || 0 : -1,
+        batchTotal: activeHere ? batch.athleteIds?.length || 0 : 0
+      });
+      if (host.dataset.signature === signature) return;
+      host.dataset.signature = signature;
       host.innerHTML = `
         <div>
           <strong>Atualização de fotos</strong>
           <span>${info.eligible.length} pronto(s) para sequência${exclusions.length ? ` · ${escapeHtml(exclusions.join(' · '))}` : ''}</span>
         </div>
         <div class="ykl-photo-batch-launch-actions">
-          <button id="ykl-photo-batch-start" type="button" class="ykl-btn ykl-blue" ${info.eligible.length ? '' : 'disabled'}>${activeHere ? 'Retomar fotos' : 'Atualizar fotos em sequência'}</button>
+          <button id="ykl-photo-batch-start" type="button" class="ykl-btn ykl-blue" ${info.eligible.length ? '' : 'disabled'}>${activeHere ? `Retomar fotos · ${(Number(batch.currentIndex) || 0) + 1}/${batch.athleteIds?.length || 0}` : 'Atualizar fotos em sequência'}</button>
           ${activeHere ? '<button id="ykl-photo-batch-stop-index" type="button" class="ykl-btn">Encerrar</button>' : ''}
         </div>`;
       $('#ykl-photo-batch-start', host)?.addEventListener('click', async () => {
@@ -275,9 +285,13 @@
       });
       $('#ykl-photo-batch-stop-index', host)?.addEventListener('click', async () => {
         await saveBatch({ ...batch, active: false, pendingAdvance: null, endedAt: Date.now() });
+        host.dataset.signature = '';
         injectCategoryControls();
       });
     } catch (error) {
+      const signature = `error:${error.message || String(error)}`;
+      if (host.dataset.signature === signature) return;
+      host.dataset.signature = signature;
       host.innerHTML = `<div class="ykl-note">${escapeHtml(error.message || String(error))}</div>`;
     }
   }
@@ -324,7 +338,7 @@
     if (!item || String(item.reference?.bigmidiaId || '') !== currentBigMidiaId()) return;
     batch.pendingAdvance = { athleteId, at: Date.now() };
     await saveBatch(batch);
-    await clearUpdatePendingRegistration();
+    await clearPendingRegistration();
   }
 
   async function processReturnFromSave() {
@@ -348,7 +362,7 @@
     if (!batch.completed.includes(currentAthleteId)) batch.completed.push(currentAthleteId);
     batch.pendingAdvance = null;
     batch.currentIndex = Number(batch.currentIndex || 0) + 1;
-    await clearUpdatePendingRegistration();
+    await clearPendingRegistration();
 
     if (batch.currentIndex >= batch.athleteIds.length) {
       batch.active = false;
@@ -451,6 +465,9 @@
     }
 
     if (!context.item) {
+      const signature = `mismatch:${context.batch.category}:${context.index}`;
+      if (card.dataset.signature === signature) return;
+      card.dataset.signature = signature;
       card.innerHTML = `
         <div class="ykl-photo-batch-title"><strong>Sessão de fotos ativa</strong><span>${escapeHtml(context.batch.category)}</span></div>
         <div class="ykl-muted">Esta página não corresponde ao atleta atual da sequência.</div>
@@ -462,6 +479,9 @@
     const ready = photoReady();
     const position = context.index + 1;
     const total = context.batch.athleteIds.length;
+    const signature = JSON.stringify({ athleteId: context.item.athleteId, position, total, ready });
+    if (card.dataset.signature === signature) return;
+    card.dataset.signature = signature;
     card.innerHTML = `
       <div class="ykl-photo-batch-title">
         <strong>Fotos · ${escapeHtml(context.batch.category)}</strong>
@@ -504,9 +524,9 @@
     const saveButton = $('#save-Atleta');
     if (!saveButton) return;
     saveHooked = true;
-    saveButton.addEventListener('click', () => {
-      markPendingAdvance().catch(() => {});
-    }, true);
+    const prepare = () => markPendingAdvance().catch(() => {});
+    saveButton.addEventListener('pointerdown', prepare, true);
+    saveButton.addEventListener('click', prepare, true);
   }
 
   function observePhotoState() {
@@ -537,7 +557,7 @@
       await renderFinishedSummary();
     }
     if (pathIs('/atleta/update')) {
-      await clearUpdatePendingRegistration();
+      await clearPendingRegistration();
       await hookNativeSave();
       observePhotoState();
       await renderUpdateWorkflow();
@@ -554,7 +574,8 @@
     await restoreCategory();
     await tick();
 
-    observer = new MutationObserver(() => {
+    observer = new MutationObserver(mutations => {
+      if (mutations.every(mutation => mutation.target.closest?.('#ykl-photo-batch-launch'))) return;
       clearTimeout(observer._timer);
       observer._timer = setTimeout(() => tick().catch(() => {}), 80);
     });
@@ -563,7 +584,8 @@
 
   async function initUpdate() {
     await tick();
-    observer = new MutationObserver(() => {
+    observer = new MutationObserver(mutations => {
+      if (mutations.every(mutation => mutation.target.closest?.('#ykl-photo-batch-card'))) return;
       clearTimeout(observer._timer);
       observer._timer = setTimeout(() => tick().catch(() => {}), 100);
     });
