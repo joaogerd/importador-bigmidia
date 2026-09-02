@@ -1,0 +1,97 @@
+#ykl-root .ykl-photo-batch-launch {
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin:8px 0 10px;
+  padding:9px;
+  border:1px solid #cfd6dd;
+  border-radius:9px;
+  background:#f8fafb;
+}
+#ykl-root .ykl-photo-batch-launch > div:first-child {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+#ykl-root .ykl-photo-batch-launch strong {
+  font-size:11px;
+  color:#174a7e;
+}
+#ykl-root .ykl-photo-batch-launch span,
+#ykl-root .ykl-photo-batch-summary {
+  font-size:10px;
+  color:#64717d;
+  line-height:1.35;
+}
+#ykl-root .ykl-photo-batch-launch-actions {
+  display:flex;
+  gap:6px;
+}
+#ykl-root .ykl-photo-batch-launch-actions .ykl-btn:first-child {
+  flex:1 1 auto;
+}
+#ykl-root .ykl-photo-batch-card {
+  border-color:#b8c9dc;
+  background:#f7faff;
+}
+#ykl-root .ykl-photo-batch-title {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:4px;
+}
+#ykl-root .ykl-photo-batch-title strong {
+  font-size:12px;
+  color:#174a7e;
+}
+#ykl-root .ykl-photo-batch-title span {
+  flex:none;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#e8eef6;
+  color:#174a7e;
+  font-size:9px;
+  font-weight:700;
+}
+#ykl-root .ykl-photo-batch-athlete {
+  font-size:12px;
+  font-weight:800;
+  color:#17212b;
+}
+#ykl-root .ykl-photo-batch-state {
+  margin-top:3px;
+  font-size:10px;
+  color:#64717d;
+}
+#ykl-root .ykl-photo-batch-state.is-ready {
+  color:#147a42;
+  font-weight:700;
+}
+#ykl-root .ykl-photo-batch-primary-actions,
+#ykl-root .ykl-photo-batch-secondary-actions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:7px;
+}
+#ykl-root .ykl-photo-batch-secondary-actions {
+  margin-top:5px;
+}
+#ykl-root .ykl-photo-batch-summary {
+  padding-top:6px;
+  border-top:1px solid #e1e6eb;
+}
+#save-Atleta.ykl-photo-save-highlight {
+  outline:4px solid rgba(23,74,126,.25) !important;
+  outline-offset:4px !important;
+  box-shadow:0 0 0 3px rgba(255,255,255,.9) !important;
+}
+@media (max-height: 900px) {
+  #ykl-root .ykl-photo-batch-launch { margin:6px 0 7px; padding:7px; gap:5px; }
+  #ykl-root .ykl-photo-batch-card { padding:7px; }
+  #ykl-root .ykl-photo-batch-primary-actions,
+  #ykl-root .ykl-photo-batch-secondary-actions { gap:5px; margin-top:5px; }
+  #ykl-root .ykl-photo-batch-primary-actions .ykl-btn,
+  #ykl-root .ykl-photo-batch-secondary-actions .ykl-btn { padding:6px 7px; }
+}
