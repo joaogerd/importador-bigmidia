@@ -94,6 +94,36 @@ A escolha por cards + drill-down foi preferida a tabs horizontais ou dropdown po
 
 Não foi criado mapeamento por categoria porque o formulário-alvo da BigMidia usa o mesmo esquema de campos para todas as categorias. Criar perfis por categoria adicionaria complexidade sem uma diferença técnica de destino.
 
+## Manutenção em lote de fotos
+
+Atualizar somente as fotos é uma tarefa operacional diferente de cadastrar um atleta completo. Por isso, o comportamento da foto não é alterado globalmente.
+
+Na visualização de uma categoria, o usuário pode iniciar explicitamente **Atualizar fotos em sequência**. A sessão persiste em `yklPhotoBatchV150` e mantém:
+
+- categoria;
+- fila alfabética dos atletas elegíveis;
+- posição atual;
+- atletas salvos e pulados;
+- estado de avanço após o salvamento da BigMidia.
+
+Entram na fila apenas atletas que possuem simultaneamente:
+
+- número de registro da Liga sincronizado;
+- link de foto disponível no Drive.
+
+Durante a edição, o painel mostra o progresso da sessão e as ações:
+
+- **Ir para Salvar** — apenas desloca a página até o botão nativo da BigMidia;
+- **Salvar e próximo** — ação explícita do usuário que salva a edição e prepara o avanço;
+- **Pular** — avança sem salvar o atleta atual;
+- **Encerrar** — termina a sessão e retorna à categoria.
+
+Quando um salvamento de edição retorna com sucesso à listagem `/atleta/index`, a extensão abre automaticamente o próximo atleta da fila. Ao final, retorna à mesma categoria e exibe um resumo.
+
+A categoria escolhida também é preservada entre navegações, evitando que a interface volte para a visão inicial após cada edição.
+
+Esse modo é opt-in e não altera o fluxo normal de cadastro. Em especial, incluir uma foto fora de uma sessão de fotos não salva nem avança automaticamente. O cadastro final de um novo atleta continua manual.
+
 ## Responsividade
 
 A v1.5.0 preserva o comportamento introduzido na v1.4.9 para telas baixas:
