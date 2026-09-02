@@ -3,15 +3,18 @@
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
 ## 1.5.0
-- Separa **Configuração da extensão** de **Execução sobre a BigMidia**, reduzindo dependências desnecessárias da página de cadastro.
-- Reorganiza a navegação em **Atletas**, **Cadastro**, **Transferir** e **Config.**.
-- Torna o mapeamento gerenciável fora do formulário após a captura persistente do catálogo de campos da Liga.
-- Reorganiza Atletas com busca global, cards por categoria e drill-down, evitando listas longas na visão inicial.
-- Preserva o comportamento responsivo em telas menores, incluindo dock das ações críticas quando falta espaço útil.
-- Adiciona modo opt-in **Atualizar fotos em sequência** por categoria.
-- O modo de fotos preserva categoria e posição na fila entre páginas, processa somente atletas com registro da Liga e foto no Drive e oferece **Ir para Salvar**, **Salvar e próximo**, **Pular** e **Encerrar**.
-- Após um salvamento bem-sucedido de edição, a extensão abre automaticamente o próximo atleta da fila; ao final, retorna à mesma categoria.
-- Incluir foto fora do modo de fotos continua sem salvar ou avançar automaticamente, preservando o fluxo normal de cadastro.
+- Refatora a arquitetura da extensão para separar Configuração da execução sobre páginas específicas da BigMidia.
+- Mantém Configurações disponíveis em todo o domínio e restringe o executor de cadastro às rotas de criação/edição.
+- Reorganiza Atletas com busca global, cards por categoria e drill-down da categoria.
+- Preserva e reforça a responsividade em telas pequenas, incluindo dock fixo das ações críticas quando falta espaço útil.
+- Adiciona atualização de fotos em sequência por categoria, sem alterar o comportamento normal do cadastro completo.
+- Adiciona **Conferência documental LPF** por categoria para revisar manualmente Foto, RG, Atestado e Autorização em cada cadastro já existente.
+- Captura automaticamente a data exibida em `Criado em:` para preencher a coluna Data Cadastro da planilha oficial.
+- A conferência usa estados **OK** e **Pendência**, exige decisão nos quatro itens antes de avançar e abre diretamente o próximo atleta da fila.
+- Adiciona **Tudo OK**, **Ir para documentos**, **Anterior**, **Pular** e **Encerrar** ao fluxo de conferência.
+- Mantém os resultados da auditoria em `chrome.storage.local` para sobreviver à navegação entre atletas.
+- Adiciona resumo agregado KIDS/JUNIOR e **Copiar para planilha LPF**, copiando QTD, Nome, Data Cadastro, Foto, RG, Atestado e Autorização em formato tabulado para colar no modelo oficial.
+- O modo de conferência não salva nem altera automaticamente o cadastro na BigMidia.
 
 ## 1.4.9
 - Adiciona captura retroativa dos números de registro da Liga a partir dos links `/atleta/update?id=...`.
