@@ -64,7 +64,8 @@
         "league-registry-sync-v149.js",
         "compact-layout-v149.js",
         "photo-batch-v150.js",
-        "lpf-audit-v150.js"
+        "lpf-audit-v150.js",
+        "lpf-audit-click-fix-v150.js"
       ],
       "css": [
         "styles.css",
