@@ -49,6 +49,7 @@
     if (pathIs('/atleta/update')) return { page: 'cadastro', label: 'Edição de atleta' };
     if (pathIs('/bid/create')) return { page: 'transferir', label: 'Nova transferência' };
     if (pathIs('/atleta/index')) return { page: 'atletas', label: 'Listagem de atletas' };
+    if (pathIs('/cbfutsal/evento/escalacao')) return { page: 'escalacao', label: 'Escalação da partida' };
     return { page: 'atletas', label: 'Navegação na Liga' };
   }
 
@@ -228,6 +229,7 @@
     nav.className = 'ykl-v150-nav';
     nav.innerHTML = `
       <button type="button" data-v150-page="atletas">Atletas</button>
+      <button type="button" data-v150-page="escalacao" ${pathIs('/cbfutsal/evento/escalacao') ? '' : 'hidden'}>Escalação</button>
       <button type="button" data-v150-page="cadastro">Cadastro</button>
       <button type="button" data-v150-page="transferir">Transferir</button>
       <button type="button" data-v150-page="config">Config.</button>`;
@@ -262,13 +264,19 @@
       </div>`;
     nav.after(athletesPage);
 
+    const lineupPage = document.createElement('section');
+    lineupPage.id = 'ykl-v150-page-escalacao';
+    lineupPage.className = 'ykl-v150-page';
+    lineupPage.innerHTML = '<div id="ykl-lineup-host"></div>';
+    athletesPage.after(lineupPage);
+
     const transferPage = document.createElement('section');
     transferPage.id = 'ykl-v150-page-transferir';
     transferPage.className = 'ykl-v150-page';
     transferPage.innerHTML = pathIs('/bid/create')
       ? '<div id="ykl-app-transfer-host"></div>'
       : '<div id="ykl-v150-transfer-placeholder"></div>';
-    athletesPage.after(transferPage);
+    lineupPage.after(transferPage);
 
     const configPage = document.createElement('section');
     configPage.id = 'ykl-v150-page-config';
@@ -309,6 +317,7 @@
   function allNavigableContainers(root) {
     return [
       $('#ykl-v150-page-atletas', root),
+      $('#ykl-v150-page-escalacao', root),
       $('#ykl-v150-page-transferir', root),
       $('#ykl-v150-page-config', root),
       $('#ykl-v150-page-cadastro', root),
