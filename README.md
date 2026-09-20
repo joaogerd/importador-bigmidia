@@ -4,7 +4,7 @@ Extensão Chrome do Yoka para auxiliar o cadastro e a correção de dados/docume
 
 ## Versão atual
 
-**v1.4.8**
+**v1.4.9**
 
 Página oficial de inclusão de atleta:
 
@@ -27,45 +27,6 @@ A branch `main` contém o **código-fonte carregável da versão operacional atu
 
 Também é possível clonar o repositório e carregar a própria raiz da `main` como extensão sem compactação, pois o `manifest.json` está na raiz.
 
-## Organização do repositório
-
-- `main`: código-fonte da versão operacional mais recente.
-- `source-history`: histórico reconstruído das versões preservadas, com um commit por versão.
-- tags `vX.Y.Z`: apontam para o código correspondente daquela versão.
-- **Releases**: local correto para os ZIPs instaláveis.
-- `archive/zip-imports-2026-08-27`: preserva, sem alteração, o lote de ZIPs que existia no laptop antes da migração.
-
-A antiga pasta `versions/` foi removida da `main`; manter vários ZIPs binários dentro da linha principal do Git só aumentava o repositório e escondia as diferenças reais de código.
-
-## Histórico reconstruído
-
-Foram reconstruídas a partir dos pacotes do laptop, com validação do número da versão no `manifest.json`:
-
-- v1.0.0
-- v1.1.0
-- v1.2.0
-- v1.3.0
-- v1.4.0
-- v1.4.1
-- v1.4.2
-- v1.4.4
-- v1.4.5
-- v1.4.7
-
-Os pacotes **v1.4.3** e **v1.4.6** não estavam no lote importado do laptop. Eles aparecem no `CHANGELOG.md` porque existiram durante o desenvolvimento, mas não foram publicados automaticamente nesta reconstrução para evitar inventar ou substituir uma versão histórica sem um pacote-fonte confiável no GitHub.
-
-## Novas versões
-
-Para uma nova versão:
-
-1. altere o código na `main`;
-2. atualize a versão em `manifest.json` e `VERSION`;
-3. teste a extensão no BigMidia;
-4. faça commit/push;
-5. crie e envie a tag correspondente.
-
-O workflow `.github/workflows/release.yml` valida se a tag, `VERSION` e `manifest.json` possuem a mesma versão, gera o ZIP instalável e publica/atualiza a Release automaticamente.
-
 ## Fonte dos dados
 
 A extensão pode carregar os atletas diretamente do cadastro do Yoka no Google Sheets por meio da API do Google Apps Script. O CSV continua disponível como contingência.
@@ -74,9 +35,21 @@ A partir da v1.4.4, a API devolve dinamicamente as colunas existentes na aba `At
 
 O backend dessa integração pertence ao projeto `cadastro-yoka`; este repositório contém a extensão Chrome.
 
-## Busca de atleta
+## Popup da extensão — v1.4.9
 
-A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo foi criado principalmente para correções pontuais de documentação e dados depois que os cadastros iniciais já foram feitos.
+Ao abrir a extensão pelo ícone do Chrome, o popup funciona como lançador do trabalho no BigMidia:
+
+- **Novo cadastro** abre `/atleta/create` na aba atual;
+- **Buscar atleta para editar** pesquisa pelo nome diretamente nos atletas do Yoka;
+- atletas com `ID BigMidia` sincronizado mostram `Liga #XXXXX` e abrem diretamente `/atleta/update?id=XXXXX`;
+- atletas ainda sem ID aparecem como **Registro da Liga não sincronizado** e não são abertos automaticamente;
+- **Abrir lista de atletas da Liga** leva para `/atleta/index`.
+
+A busca tenta usar a API do Yoka e, em caso de indisponibilidade transitória, reaproveita atletas e referências já carregados no armazenamento local quando disponíveis.
+
+## Busca de atleta no painel
+
+A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome** para correções pontuais de documentação e dados.
 
 - aceita partes do nome e múltiplas palavras;
 - pesquisa em todos os atletas retornados pelo Google Sheets;
@@ -84,61 +57,58 @@ A partir da **v1.4.8**, o painel possui **Buscar atleta pelo nome**. Esse fluxo 
 - mostra categoria e status BigMidia quando disponíveis;
 - ao selecionar um resultado, aquele atleta passa a ser o atleta atual da extensão.
 
-## Foto do atleta
+## Arquivos do atleta
 
-A v1.4.8 também incorpora a coluna **`Link da foto do atleta`** ao painel de arquivos.
+A v1.4.8 incorporou a coluna **`Link da foto do atleta`** ao painel de arquivos.
 
-A foto usa o mesmo padrão visual dos demais arquivos, com **Abrir**, **Baixar** e **Incluir**, e os estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**. Ela continua sendo tratada separadamente de RG, atestado e termo de responsável, pois não corresponde a um tipo de documento do BigMidia.
+A seção **Arquivos no Drive** usa o mesmo padrão para Foto, RG, Atestado e Autorização, com **Abrir**, **Baixar** e **Incluir**, e os estados **Link disponível**, **Sem link**, **Baixando...**, **Incluído** e **Erro**.
 
-O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em sequência, todos os itens que estiverem disponíveis para o atleta:
+Na v1.4.9, a **Foto é opcional** e permanece somente no fluxo individual. O botão coletivo volta a se chamar **Incluir todos os documentos** e processa em sequência apenas:
 
-1. Foto;
-2. RG;
-3. Atestado;
-4. Autorização.
+1. RG;
+2. Atestado;
+3. Autorização.
 
-Cada item só começa depois que o anterior terminou. Em caso de erro, a extensão informa qual arquivo apresentou problema e evita mascarar a falha com uma mensagem geral de sucesso.
+Se houver foto disponível, ela pode ser incluída separadamente pelo botão **Incluir** da própria linha.
 
-Ao incluir a foto, a extensão:
+## Registros da Liga — v1.4.9
 
-1. baixa o arquivo do Google Drive usando a sessão atual do Chrome;
-2. exige JPG/JPEG ou PNG;
-3. procura o campo de foto/imagem/avatar da tela atual do BigMidia;
-4. exclui da busca o campo de upload utilizado pelo modal de documentos;
-5. coloca o arquivo no campo encontrado e dispara os eventos do navegador;
-6. pede que o operador confira a prévia antes de salvar.
+A página `https://ligapaulistafutsal.bigmidia.com/atleta/index` expõe os links de edição dos atletas no formato `/atleta/update?id=XXXXX`.
 
-Como o HTML interno do BigMidia pode mudar, a primeira inclusão de foto deve ser conferida visualmente antes de seguir em lote.
+A v1.4.9 detecta esses IDs diretamente no DOM da listagem e apresenta o painel **Registros da Liga**. No comportamento atual do BigMidia, todos os registros da listagem ficam disponíveis no DOM de uma só vez, então a extensão não precisa navegar automaticamente entre páginas para capturá-los.
+
+O botão **Cruzar e sincronizar registros** executa estas etapas com feedback visual imediato:
+
+1. detecta todos os IDs BigMidia presentes na listagem;
+2. carrega os atletas do Yoka pela API;
+3. cruza os registros por CPF e, como fallback, por nome completo normalizado;
+4. separa correspondências ambíguas, conflitos e registros sem correspondência;
+5. envia somente as associações seguras para `syncBigMidiaReferences`;
+6. grava `ID BigMidia` e `URL/Referência BigMidia` na aba `Cadastro BigMidia`.
+
+A sincronização não altera automaticamente o status do atleta para `Cadastrado`.
+
+Depois de sincronizado, o painel de busca passa a mostrar **Liga #XXXXX** e o atleta selecionado recebe o botão **Abrir na Liga**, que abre diretamente `/atleta/update?id=XXXXX`.
 
 ## Recursos atuais
 
 - carregamento de atletas pelo Google Sheets ou CSV;
-- busca de atleta pelo nome para correções pontuais;
-- filtro de cadastro por categoria;
+- busca de atleta pelo nome no painel e no popup;
+- acesso direto à edição pelo `ID BigMidia`;
+- filtro por categoria;
 - preenchimento assistido dos dados do atleta e responsável;
 - integração com consulta da RFB;
-- download e inclusão assistida de RG, atestado e termo do Google Drive;
-- inclusão assistida da foto do atleta a partir do Drive;
-- inclusão coletiva de **Foto + RG + Atestado + Autorização** pelo botão **Incluir todos os arquivos**;
-- `Autorização` cadastrada como **Termo Responsável (Menor de 18)**;
-- mapeamento manual persistente, inclusive campos definidos como **— não preencher —**;
-- correção do campo **Tipo Logradouro**;
+- inclusão assistida de Foto, RG, Atestado e Autorização;
+- inclusão coletiva de **RG + Atestado + Autorização**;
+- foto opcional, incluída somente quando desejado;
+- sincronização dos números de registro da Liga;
+- mapeamento manual persistente;
 - atualização de status na aba `Cadastro BigMidia`;
-- retorno automático para `/atleta/create` depois do cadastro;
-- notificações não bloqueantes para preenchimento e documentos;
+- notificações não bloqueantes;
 - botão final **Cadastrar** mantido sob controle humano.
 
 Consulte `CHANGELOG.md` para a evolução funcional detalhada.
 
 ## Segurança e dados pessoais
 
-Este projeto trabalha com dados de atletas, inclusive menores de idade. Não versione:
-
-- CSVs reais de atletas;
-- CPF, endereço, telefone ou outros dados pessoais reais;
-- RG, atestados, autorizações ou fotos;
-- token da API do Apps Script;
-- cookies ou sessões do Chrome;
-- arquivos temporários baixados do Google Drive.
-
-Use somente dados fictícios em exemplos e testes.
+Este projeto trabalha com dados de atletas, inclusive menores de idade. Não versione CSVs reais, CPF, endereço, telefone, RG, atestados, autorizações, fotos, token da API, cookies ou sessões do Chrome.

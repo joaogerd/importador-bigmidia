@@ -1,11 +1,17 @@
 (() => {
   'use strict';
 
+  // A foto é opcional e permanece somente no fluxo individual.
+  // O botão coletivo inclui apenas os documentos exigidos no cadastro.
   const ITEMS = [
-    { label: 'Foto', include: '#ykl-v148-photo-include', status: '#ykl-v148-photo-status' },
     { label: 'RG', include: '#ykl-doc-rg-include', status: '#ykl-doc-rg-status' },
     { label: 'Atestado', include: '#ykl-doc-atestado-include', status: '#ykl-doc-atestado-status' },
     { label: 'Autorização', include: '#ykl-doc-autorizacao-include', status: '#ykl-doc-autorizacao-status' }
+  ];
+
+  const WORKING_STATUSES = [
+    '#ykl-v148-photo-status',
+    ...ITEMS.map(item => item.status)
   ];
 
   let bulkBusy = false;
@@ -49,7 +55,7 @@
   }
 
   function anyItemWorking() {
-    return ITEMS.some(item => $(item.status)?.classList.contains('ykl-doc-working'));
+    return WORKING_STATUSES.some(selector => $(selector)?.classList.contains('ykl-doc-working'));
   }
 
   function formIsFilling() {
@@ -80,7 +86,7 @@
       if (value) return value;
       await sleep(interval);
     }
-    throw new Error('Tempo limite excedido aguardando a inclusão do arquivo.');
+    throw new Error('Tempo limite excedido aguardando a inclusão do documento.');
   }
 
   async function includeItem(item) {
@@ -113,11 +119,11 @@
     return Boolean(modal && (modal.classList.contains('show') || getComputedStyle(modal).display !== 'none'));
   }
 
-  async function includeAllFiles() {
+  async function includeAllDocuments() {
     if (bulkBusy) return;
     const items = availableItems();
     if (!items.length) {
-      showNotice('Este atleta não possui arquivos disponíveis para inclusão.', 'error', 0);
+      showNotice('Este atleta não possui documentos disponíveis para inclusão.', 'error', 0);
       return;
     }
 
@@ -138,9 +144,9 @@
       }
 
       if (!errors.length) {
-        showNotice('✓ Todos os arquivos disponíveis foram incluídos. Você já pode conferir e clicar em Cadastrar.', 'success', 9000);
+        showNotice('✓ Todos os documentos disponíveis foram incluídos. A foto é opcional e pode ser incluída separadamente.', 'success', 9000);
       } else {
-        const prefix = included ? `${included} arquivo(s) incluído(s). ` : '';
+        const prefix = included ? `${included} documento(s) incluído(s). ` : '';
         showNotice(`${prefix}A inclusão terminou com problema: ${errors.join(' | ')}`, 'error', 0);
       }
     } finally {
@@ -151,18 +157,20 @@
 
   function installBulkCoordinator() {
     const original = $('#ykl-doc-include-all');
-    const photoRow = $('#ykl-v148-photo-row');
-    if (!original || !photoRow) return false;
+    if (!original) return false;
     if (original.dataset.yklBulkV148 === '1') return true;
 
-    // Substitui o botão para remover o listener antigo do content.js, que conhece
-    // apenas RG/Atestado/Autorização. Os uploads individuais continuam sendo
-    // executados pelas rotinas originais já testadas.
+    // Mantém o coordenador sequencial já validado, mas somente para
+    // RG, Atestado e Autorização. A foto não participa do fluxo coletivo.
     const button = original.cloneNode(true);
     button.dataset.yklBulkV148 = '1';
-    button.textContent = 'Incluir todos os arquivos';
+    button.textContent = 'Incluir todos os documentos';
+    // Ação de documentos usa a mesma identidade visual azul dos botões
+    // individuais "Incluir". O verde fica reservado para "Preencher atleta".
+    button.classList.remove('ykl-primary');
+    button.classList.add('ykl-blue');
     original.replaceWith(button);
-    button.addEventListener('click', includeAllFiles);
+    button.addEventListener('click', includeAllDocuments);
 
     const card = button.closest('.ykl-doc-card');
     if (card) {

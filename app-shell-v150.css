@@ -1,0 +1,350 @@
+#ykl-root.ykl-v150-shell .ykl-v150-legacy-tabs,
+#ykl-root.ykl-v150-shell .ykl-v150-legacy-config {
+  display: none !important;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 1px 6px;
+  font-size: 10px;
+  color: #7b8792;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-context strong {
+  color: #174a7e;
+  font-size: 10px;
+  text-align: right;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-nav {
+  position: sticky;
+  top: -12px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 9px;
+  padding: 3px 0 7px;
+  background: #fff;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-nav button,
+#ykl-root.ykl-v150-shell .ykl-v150-config-nav button {
+  min-width: 0;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+  background: #f8fafb;
+  color: #1f2d3a;
+  padding: 7px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-nav button.active,
+#ykl-root.ykl-v150-shell .ykl-v150-config-nav button.active {
+  background: #174a7e;
+  border-color: #174a7e;
+  color: #fff;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-page[hidden],
+#ykl-root.ykl-v150-shell .ykl-v150-config-pane:not(.active) {
+  display: none !important;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-section-heading h3 {
+  margin: 0;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-section-heading span {
+  display: block;
+  margin-top: 2px;
+  color: #64717d;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card {
+  min-width: 0;
+  border: 1px solid #dce2e7;
+  border-radius: 9px;
+  background: #fff;
+  padding: 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card:hover {
+  border-color: #174a7e;
+  background: #f7f9fb;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card strong,
+#ykl-root.ykl-v150-shell .ykl-v150-category-card span,
+#ykl-root.ykl-v150-shell .ykl-v150-category-card small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card strong {
+  font-size: 12px;
+  color: #17212b;
+  white-space: nowrap;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card span {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #44515d;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-category-card small {
+  margin-top: 2px;
+  font-size: 9px;
+  color: #7b8792;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-athlete-list {
+  margin-top: 7px;
+  max-height: min(46vh, 360px);
+  overflow: auto;
+  border-top: 1px solid #edf0f2;
+  padding-top: 6px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-athlete-row {
+  display: block;
+  width: 100%;
+  margin: 0 0 5px;
+  padding: 8px 9px;
+  border: 1px solid #dce2e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #17212b;
+  text-align: left;
+  cursor: pointer;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-athlete-row:hover {
+  border-color: #174a7e;
+  background: #f7f9fb;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-athlete-row strong {
+  display: block;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-athlete-row span {
+  display: block;
+  margin-top: 2px;
+  color: #64717d;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-selected-label {
+  color: #64717d;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-selected-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-detail-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-detail-header strong,
+#ykl-root.ykl-v150-shell .ykl-v150-detail-header span {
+  display: block;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-sync-card {
+  margin-top: 10px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-embedded-sync {
+  font-family: inherit !important;
+  color: inherit !important;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-config-nav {
+  position: sticky;
+  top: 29px;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  background: #fff;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin: 7px 0;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-groups {
+  max-height: min(50vh, 430px);
+  overflow: auto;
+  margin: 7px 0;
+  border: 1px solid #dce2e7;
+  border-radius: 8px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-group {
+  border-bottom: 1px solid #edf0f2;
+  background: #fff;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-group:last-child {
+  border-bottom: 0;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  list-style: none;
+  color: #174a7e;
+  font-size: 11px;
+  font-weight: 800;
+  background: #f6f8fa;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-group > summary small {
+  color: #64717d;
+  font-size: 9px;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-row {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 7px;
+  align-items: center;
+  padding: 7px;
+  border-top: 1px solid #edf0f2;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-row label strong,
+#ykl-root.ykl-v150-shell .ykl-v150-map-row label small {
+  display: block;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-row label strong {
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-map-row label small {
+  margin-top: 2px;
+  color: #8a949d;
+  font: 8px/1.25 monospace;
+  overflow-wrap: anywhere;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-danger-zone > summary {
+  cursor: pointer;
+  color: #64717d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-success {
+  color: #147a42 !important;
+  font-weight: 700;
+}
+
+#ykl-root.ykl-v150-shell .ykl-v150-error {
+  color: #b42318 !important;
+  font-weight: 700;
+}
+
+@media (max-height: 900px) {
+  #ykl-root.ykl-v150-shell .ykl-v150-nav {
+    top: -8px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-nav button,
+  #ykl-root.ykl-v150-shell .ykl-v150-config-nav button {
+    padding: 6px 3px;
+    font-size: 9px;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-config-nav {
+    top: 27px;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-athlete-list {
+    max-height: 36vh;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-map-groups {
+    max-height: 38vh;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-category-card {
+    padding: 7px;
+  }
+}
+
+@media (max-width: 360px) {
+  #ykl-root.ykl-v150-shell .ykl-v150-nav button {
+    font-size: 8px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-category-grid {
+    gap: 5px;
+  }
+
+  #ykl-root.ykl-v150-shell .ykl-v150-map-row {
+    grid-template-columns: 1fr;
+  }
+}

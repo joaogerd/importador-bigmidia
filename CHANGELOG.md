@@ -1,6 +1,49 @@
 # Changelog
 
+## 1.5.1 - Assistente de escalação
+
+- adiciona uma aba **Escalação** na tela de escalação de partida do Bigmidia;
+- cruza os atletas exibidos no Bigmidia com a planilha do Yoka por nome completo normalizado;
+- lê e preenche automaticamente o número da camisa;
+- permite selecionar todos, somente não escalados ou atletas individualmente;
+- escala os selecionados usando o próprio controle nativo da página, preservando sessão e CSRF;
+- não remove automaticamente atletas que já estejam escalados;
+- ignora correspondências ambíguas e atletas sem número, exibindo o motivo no painel;
+- aumenta a tabela para até 50 registros quando necessário para evitar perder atletas por paginação.
+
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
+
+## 1.5.0
+- Refatora a arquitetura da extensão para separar Configuração da execução sobre páginas específicas da BigMidia.
+- Mantém Configurações disponíveis em todo o domínio e restringe o executor de cadastro às rotas de criação/edição.
+- Reorganiza Atletas com busca global, cards por categoria e drill-down da categoria.
+- Preserva e reforça a responsividade em telas pequenas, incluindo dock fixo das ações críticas quando falta espaço útil.
+- Adiciona atualização de fotos em sequência por categoria, sem alterar o comportamento normal do cadastro completo.
+- Adiciona **Conferência documental LPF** por categoria para revisar manualmente Foto, RG, Atestado e Autorização em cada cadastro já existente.
+- Captura automaticamente a data exibida em `Criado em:` para preencher a coluna Data Cadastro da planilha oficial.
+- A conferência usa estados **OK** e **Pendência**, exige decisão nos quatro itens antes de avançar e abre diretamente o próximo atleta da fila.
+- Adiciona **Tudo OK**, **Ir para documentos**, **Anterior**, **Pular** e **Encerrar** ao fluxo de conferência.
+- Mantém os resultados da auditoria em `chrome.storage.local` para sobreviver à navegação entre atletas.
+- Adiciona resumo agregado KIDS/JUNIOR e **Copiar para planilha LPF**, copiando QTD, Nome, Data Cadastro, Foto, RG, Atestado e Autorização em formato tabulado para colar no modelo oficial.
+- O modo de conferência não salva nem altera automaticamente o cadastro na BigMidia.
+
+## 1.4.9
+- Adiciona captura retroativa dos números de registro da Liga a partir dos links `/atleta/update?id=...`.
+- A página `/atleta/index` passa a exibir um painel próprio de **Registros da Liga**.
+- O sincronizador usa todos os IDs já detectados no DOM da listagem; no BigMidia atual, os registros ficam disponíveis de uma só vez e não exigem paginação automática.
+- Corrige o botão de sincronização para não depender de um `MutationObserver` que redesenhava o próprio painel e podia substituir o botão durante o clique.
+- O clique agora apresenta feedback imediato: **Iniciando…**, **Carregando atletas do Yoka…**, cruzamento e sincronização.
+- Cruza cada registro por CPF e, como fallback, por nome completo normalizado.
+- Correspondências ambíguas, conflitos e registros sem correspondência não são gravados automaticamente.
+- Envia as correspondências seguras em lote pela ação `syncBigMidiaReferences` do Apps Script 1.4.9.
+- Grava `ID BigMidia` e `URL/Referência BigMidia` sem alterar automaticamente o status do cadastro.
+- A busca passa a mostrar `Liga #xxxxx` quando o atleta já possui referência sincronizada.
+- Adiciona **Abrir na Liga** para abrir diretamente `/atleta/update?id=xxxxx`.
+- Torna a **Foto opcional** no fluxo coletivo: **Incluir todos os documentos** passa a processar somente RG, Atestado e Autorização; a foto permanece disponível para inclusão individual.
+- O popup da extensão passa a oferecer **Novo cadastro**, **Buscar atleta para editar** e **Abrir lista de atletas da Liga**.
+- A busca do popup usa os registros da Liga já sincronizados para abrir diretamente `/atleta/update?id=xxxxx`.
+- Se a API estiver temporariamente indisponível, o popup tenta usar os atletas e referências já carregados no armazenamento local.
+- Adiciona retry e diagnóstico mais preciso para respostas transitórias/não JSON do Apps Script.
 
 ## 1.4.8
 - Adiciona **busca de atleta pelo nome** no painel principal para o fluxo de correção pontual de cadastros/documentos.
@@ -10,7 +53,6 @@ Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 - Adiciona a **Foto do atleta** à área de arquivos, usando a coluna `Link da foto do atleta` do Google Sheets.
 - Permite abrir, baixar e incluir a foto diretamente a partir do Drive.
 - Padroniza a linha da foto com RG, atestado e autorização: botões **Abrir / Baixar / Incluir**, estados **Link disponível / Sem link / Baixando... / Incluído / Erro** e as mesmas classes visuais do `content.js`.
-- O botão coletivo passa a se chamar **Incluir todos os arquivos** e processa, em sequência, **Foto + RG + Atestado + Autorização**, aguardando cada item terminar antes de iniciar o próximo.
 - A foto é tratada separadamente de RG/atestado/termo e nunca é enviada como tipo de documento.
 - Detecta o campo de foto do BigMidia por identificadores/labels relacionados a foto, imagem ou avatar, excluindo explicitamente o campo do modal de documentos.
 - Aceita foto em JPG/JPEG ou PNG e usa o mesmo aviso não bloqueante do restante do painel.
