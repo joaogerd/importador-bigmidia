@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Assistente operacional do Yoka para cadastro, documentos, atletas, registros da Liga, transferências e configurações independentes da página atual.",
   "permissions": [
     "storage"
@@ -99,13 +99,33 @@
     },
     {
       "matches": [
+        "https://ligapaulistafutsal.bigmidia.com/cbfutsal/evento/escalacao*"
+      ],
+      "js": [
+        "app-shell-v150.js",
+        "config-v150.js",
+        "compact-layout-v149.js",
+        "photo-batch-return-v150.js",
+        "lineup-v151.js"
+      ],
+      "css": [
+        "styles.css",
+        "app-shell-v150.css",
+        "compact-layout-v149.css",
+        "lineup-v151.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
         "https://ligapaulistafutsal.bigmidia.com/*"
       ],
       "exclude_matches": [
         "https://ligapaulistafutsal.bigmidia.com/atleta/create*",
         "https://ligapaulistafutsal.bigmidia.com/atleta/update*",
         "https://ligapaulistafutsal.bigmidia.com/atleta/index*",
-        "https://ligapaulistafutsal.bigmidia.com/bid/create*"
+        "https://ligapaulistafutsal.bigmidia.com/bid/create*",
+        "https://ligapaulistafutsal.bigmidia.com/cbfutsal/evento/escalacao*"
       ],
       "js": [
         "app-shell-v150.js",
