@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.1 - Assistente de escalação
+
+- adiciona uma aba **Escalação** na tela de escalação de partida do Bigmidia;
+- cruza os atletas exibidos no Bigmidia com a planilha do Yoka por nome completo normalizado;
+- lê e preenche automaticamente o número da camisa;
+- permite selecionar todos, somente não escalados ou atletas individualmente;
+- escala os selecionados usando o próprio controle nativo da página, preservando sessão e CSRF;
+- não remove automaticamente atletas que já estejam escalados;
+- ignora correspondências ambíguas e atletas sem número, exibindo o motivo no painel;
+- aumenta a tabela para até 50 registros quando necessário para evitar perder atletas por paginação.
+
 Histórico das versões conhecidas do Importador BigMidia / Importador Yoka.
 
 ## 1.5.0
