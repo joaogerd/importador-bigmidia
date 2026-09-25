@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Importador Yoka - Liga Paulista",
-  "version": "1.5.1",
-  "description": "Assistente operacional do Yoka para cadastro, documentos, atletas, registros da Liga, transferências e configurações independentes da página atual.",
+  "version": "1.6.0",
+  "description": "Assistente operacional do Yoka para cadastro, documentos, atletas via Firebase, registros da Liga, transferências e configurações independentes da página atual.",
   "permissions": [
     "storage"
   ],

@@ -238,7 +238,7 @@
 
       const saved = await savedState();
       if (!saved.apiUrl || !saved.apiToken) {
-        throw new Error('Configure a API do Google Sheets na aba Dados da extensão antes de sincronizar.');
+        throw new Error('Configure a conexão com o Firebase na aba Dados da extensão antes de sincronizar.');
       }
 
       const data = await api(saved, 'listAthletes', {});
@@ -266,7 +266,7 @@
       }
 
       button.textContent = 'Sincronizando…';
-      setStatus(`Sincronizando ${matched.matches.length} referências seguras com a planilha…`);
+      setStatus(`Sincronizando ${matched.matches.length} referências seguras com o Firebase…`);
 
       const result = await api(saved, 'syncBigMidiaReferences', {
         references: matched.matches.map(item => ({

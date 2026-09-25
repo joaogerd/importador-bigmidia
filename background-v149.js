@@ -67,7 +67,7 @@ importScripts('background.js');
         if (attempt + 1 < RETRY_DELAYS.length) continue;
         throw new Error(
           `A API Yoka respondeu conteúdo não JSON após ${RETRY_DELAYS.length} tentativas (${lastDiagnostic}). ` +
-          'Se o problema persistir, teste a conexão e confira a implantação do Apps Script.'
+          'Se o problema persistir, teste a conexão e confira a implantação do gateway Yoka/Firebase.'
         );
       }
 
