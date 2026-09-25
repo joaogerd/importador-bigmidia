@@ -178,7 +178,7 @@
 
       <section id="ykl-v150-config-dados" class="ykl-v150-config-pane">
         <div class="ykl-card">
-          <div class="ykl-v150-section-heading"><div><h3>Firebase do Yoka</h3><span>Fonte principal dos atletas, documentos e referências da Liga via gateway seguro.</span></div></div>
+          <div class="ykl-v150-section-heading"><div><h3>Firebase do Yoka</h3><span>Fonte única dos atletas, documentos e referências da Liga.</span></div></div>
           <label class="ykl-label" for="ykl-v150-api-url">URL da API</label>
           <input id="ykl-v150-api-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
           <label class="ykl-label" for="ykl-v150-api-token" style="margin-top:7px">Chave da API</label>
@@ -187,7 +187,7 @@
           <div id="ykl-v150-api-status" class="ykl-muted"></div>
         </div>
         <div class="ykl-card">
-          <div class="ykl-v150-section-heading"><div><h3>CSV de contingência</h3><span>Use somente se o Firebase/gateway estiver indisponível.</span></div></div>
+          <div class="ykl-v150-section-heading"><div><h3>CSV de contingência</h3><span>Use somente se o Firebase estiver indisponível.</span></div></div>
           <input id="ykl-v150-csv" type="file" accept=".csv,text/csv,text/plain">
           <div id="ykl-v150-csv-status" class="ykl-muted" style="margin-top:5px"></div>
         </div>
@@ -549,7 +549,7 @@
   }
 
   async function clearLocal() {
-    if (!confirm('Apagar os dados locais da extensão neste Chrome? A planilha e a Liga não serão alteradas.')) return;
+    if (!confirm('Apagar os dados locais da extensão neste Chrome? O Firebase e a Liga não serão alterados.')) return;
     await new Promise(resolve => chrome.storage.local.remove([STATE_KEY, CATALOG_KEY, CACHE_KEY], resolve));
     location.reload();
   }
