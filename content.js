@@ -599,7 +599,7 @@
     updateAthleteCard();
   }
 
-  async function loadAthletesFromSheets() {
+  async function loadAthletesFromFirebase() {
     const urlInput = $('#ykl-api-url');
     const tokenInput = $('#ykl-api-token');
     state.apiUrl = String(urlInput?.value || state.apiUrl || '').trim();
@@ -680,7 +680,7 @@
   function rememberPendingRegistration() {
     if (!state.rows.length) return;
     const athleteId = currentAthleteId();
-    if (state.dataSource === 'sheets' && !athleteId) return;
+    if (state.dataSource === 'firestore' && !athleteId) return;
     state.pendingRegistration = {
       athleteId: athleteId || '',
       index: state.currentIndex,
@@ -830,7 +830,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         }
       }
       setProgress(100);
-      if (state.dataSource === 'sheets') {
+      if (state.dataSource === 'firestore') {
         try { await syncCurrentStatus('Em preenchimento'); }
         catch (syncError) { log(`⚠ Planilha: ${syncError.message}`); }
       }
@@ -1401,7 +1401,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const done = Boolean(state.completed[state.currentIndex]) || serverStatus === 'Cadastrado';
     status.textContent = done ? 'Cadastrado' : (serverStatus || 'Pendente');
     status.className = `ykl-badge ${done ? 'ykl-success-badge' : ''}`;
-    $('#ykl-map-count').textContent = `${mappedCount()} campos mapeados · ${state.dataSource === 'sheets' ? 'Google Sheets' : 'CSV'}`;
+    $('#ykl-map-count').textContent = `${mappedCount()} campos mapeados · ${state.dataSource === 'firestore' ? 'Google Sheets' : 'CSV'}`;
     $('#ykl-delay').value = state.delay;
     updateDocumentCard();
   }
@@ -1518,18 +1518,18 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
         </section>
         <section class="ykl-section" data-section="dados">
           <div class="ykl-card">
-            <h3>Google Sheets do Yoka</h3>
-            <label class="ykl-label" for="ykl-api-url">URL da API (Apps Script)</label>
+            <h3>Firebase do Yoka</h3>
+            <label class="ykl-label" for="ykl-api-url">URL da API do Firebase</label>
             <input id="ykl-api-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
             <label class="ykl-label" for="ykl-api-token" style="margin-top:7px">Chave da API</label>
-            <input id="ykl-api-token" type="password" placeholder="Chave gerada no Apps Script">
-            <div class="ykl-row"><button id="ykl-api-test" class="ykl-btn ykl-grow" type="button">Testar conexão</button><button id="ykl-load-sheets" class="ykl-btn ykl-blue ykl-grow" type="button">Carregar atletas</button></div>
+            <input id="ykl-api-token" type="password" placeholder="Chave da API Yoka">
+            <div class="ykl-row"><button id="ykl-api-test" class="ykl-btn ykl-grow" type="button">Testar conexão</button><button id="ykl-load-firebase" class="ykl-btn ykl-blue ykl-grow" type="button">Carregar atletas</button></div>
             <div class="ykl-connection"><span id="ykl-api-dot" class="ykl-dot"></span><span id="ykl-api-status">API ainda não configurada.</span></div>
           </div>
           <div class="ykl-card">
             <label class="ykl-label" for="ykl-file">CSV (modo de contingência)</label>
             <input id="ykl-file" type="file" accept=".csv,text/csv,text/plain">
-            <div class="ykl-muted">Use o CSV somente se a integração com o Google Sheets estiver indisponível.</div>
+            <div class="ykl-muted">Use o CSV somente se a integração com o Firebase estiver indisponível.</div>
           </div>
           <div class="ykl-card">
             <label class="ykl-label" for="ykl-logo-file">Logo do Yoka</label>
@@ -1541,7 +1541,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
           <div class="ykl-row"><button id="ykl-export-map" class="ykl-btn ykl-grow">Exportar mapeamento</button><button id="ykl-import-map" class="ykl-btn ykl-grow">Importar mapeamento</button></div>
           <input id="ykl-map-file" class="ykl-hidden" type="file" accept=".json,application/json">
           <button id="ykl-clear" class="ykl-btn ykl-danger ykl-full">Apagar dados locais</button>
-          <div class="ykl-note" style="margin-top:9px">A configuração da API e a cópia de trabalho dos atletas ficam neste Chrome. Quando conectado ao Sheets, a extensão envia apenas atualizações de status para o Apps Script do Yoka.</div>
+          <div class="ykl-note" style="margin-top:9px">A configuração da API e a cópia de trabalho dos atletas ficam neste Chrome. Quando conectado ao Firebase, a extensão lê os atletas e grava as atualizações de status no Firebase.</div>
         </section>
       </div>`;
     document.body.appendChild(root);
@@ -1554,13 +1554,13 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     $('#ykl-api-url').addEventListener('change', e => { state.apiUrl = e.target.value.trim(); saveState(); updateConnectionStatus(); });
     $('#ykl-api-token').addEventListener('change', e => { state.apiToken = e.target.value.trim(); saveState(); updateConnectionStatus(); });
     $('#ykl-api-test').addEventListener('click', testApiConnection);
-    $('#ykl-load-sheets').addEventListener('click', loadAthletesFromSheets);
+    $('#ykl-load-firebase').addEventListener('click', loadAthletesFromFirebase);
     $('#ykl-category-filter').addEventListener('change', async e => {
       state.categoryFilter = e.target.value;
       saveState();
       renderCategoryFilter();
-      if (state.dataSource === 'sheets' && state.apiUrl && state.apiToken) {
-        await loadAthletesFromSheets();
+      if (state.dataSource === 'firestore' && state.apiUrl && state.apiToken) {
+        await loadAthletesFromFirebase();
       }
     });
     $('#ykl-fill').addEventListener('click', fillAthlete);
@@ -1569,9 +1569,9 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     $('#ykl-next').addEventListener('click', () => changeIndex(1));
     $('#ykl-done-next').addEventListener('click', async () => {
       if (!state.rows.length) return;
-      if (state.dataSource === 'sheets') {
+      if (state.dataSource === 'firestore') {
         try { await syncCurrentStatus('Cadastrado', { bigmidiaUrl: location.href, bigmidiaId: extractBigMidiaId(location.href), observation: 'Confirmação manual pelo operador da extensão.' }); }
-        catch (error) { alert(`Não consegui registrar na planilha: ${error.message}`); return; }
+        catch (error) { alert(`Não consegui registrar na Firebase: ${error.message}`); return; }
       } else {
         state.completed[state.currentIndex] = true;
       }
@@ -1670,7 +1670,7 @@ ${BIGMIDIA_ATHLETE_CREATE_URL}`);
     const saveButton = document.getElementById('save-Atleta');
     if (saveButton) saveButton.addEventListener('click', rememberPendingRegistration, true);
     form.addEventListener('submit', rememberPendingRegistration, true);
-    log('Extensão pronta. Carregue os atletas do Google Sheets ou use o CSV de contingência.');
+    log('Extensão pronta. Carregue os atletas do Firebase ou use o CSV de contingência.');
   }
 
   init();
