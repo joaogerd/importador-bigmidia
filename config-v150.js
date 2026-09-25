@@ -178,16 +178,16 @@
 
       <section id="ykl-v150-config-dados" class="ykl-v150-config-pane">
         <div class="ykl-card">
-          <div class="ykl-v150-section-heading"><div><h3>Google Sheets do Yoka</h3><span>Fonte principal dos atletas e documentos.</span></div></div>
+          <div class="ykl-v150-section-heading"><div><h3>Firebase do Yoka</h3><span>Fonte principal dos atletas, documentos e referências da Liga via gateway seguro.</span></div></div>
           <label class="ykl-label" for="ykl-v150-api-url">URL da API</label>
           <input id="ykl-v150-api-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
           <label class="ykl-label" for="ykl-v150-api-token" style="margin-top:7px">Chave da API</label>
-          <input id="ykl-v150-api-token" type="password" placeholder="Chave do Apps Script">
+          <input id="ykl-v150-api-token" type="password" placeholder="Chave da API Yoka">
           <div class="ykl-row"><button id="ykl-v150-api-test" type="button" class="ykl-btn ykl-grow">Testar conexão</button><button id="ykl-v150-api-load" type="button" class="ykl-btn ykl-blue ykl-grow">Atualizar atletas</button></div>
           <div id="ykl-v150-api-status" class="ykl-muted"></div>
         </div>
         <div class="ykl-card">
-          <div class="ykl-v150-section-heading"><div><h3>CSV de contingência</h3><span>Use somente se o Apps Script estiver indisponível.</span></div></div>
+          <div class="ykl-v150-section-heading"><div><h3>CSV de contingência</h3><span>Use somente se o Firebase/gateway estiver indisponível.</span></div></div>
           <input id="ykl-v150-csv" type="file" accept=".csv,text/csv,text/plain">
           <div id="ykl-v150-csv-status" class="ykl-muted" style="margin-top:5px"></div>
         </div>
@@ -441,7 +441,7 @@
         headers: enriched.headers,
         rows: enriched.rows,
         currentIndex: Math.min(Number(savedState.currentIndex) || 0, enriched.rows.length - 1),
-        dataSource: 'sheets',
+        dataSource: 'firestore',
         serverStatuses: data?.statuses || {},
         availableCategories: collectCategories(enriched.rows, enriched.headers),
         categoryFilter: ''
@@ -449,7 +449,7 @@
       const cache = (await storageGet([CACHE_KEY]))?.[CACHE_KEY] || {};
       const references = data?.references || {};
       await storageSet({ [STATE_KEY]: savedState, [CACHE_KEY]: { ...cache, ...references } });
-      setMessage('ykl-v150-api-status', `${enriched.rows.length} atletas atualizados do Google Sheets.`, 'ok');
+      setMessage('ykl-v150-api-status', `${enriched.rows.length} atletas atualizados do Firebase.`, 'ok');
       draftMapping = { ...(savedState.mapping || {}) };
       renderMapping();
     } catch (error) {
