@@ -208,7 +208,7 @@
         <details class="ykl-v150-danger-zone">
           <summary>Manutenção dos dados locais</summary>
           <div class="ykl-card" style="margin-top:7px">
-            <div class="ykl-muted">Remove cache de atletas, mapeamento e preferências salvos neste Chrome. Não altera a planilha nem a Liga.</div>
+            <div class="ykl-muted">Remove cache de atletas, mapeamento e preferências salvos neste Chrome. Não altera o Firebase nem a Liga.</div>
             <button id="ykl-v150-clear-local" type="button" class="ykl-btn ykl-danger ykl-full" style="margin-top:8px">Apagar dados locais</button>
           </div>
         </details>
