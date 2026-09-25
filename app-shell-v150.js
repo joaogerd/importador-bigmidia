@@ -112,7 +112,7 @@
         }
       }
 
-      if (!rows.length) throw new Error('Nenhum atleta carregado. Configure o Google Sheets em Configurações > Dados.');
+      if (!rows.length) throw new Error('Nenhum atleta carregado. Configure o Firebase em Configurações > Dados.');
 
       const athletes = rows.map((row, sourceIndex) => {
         const athleteId = value(row, headers, ['ID', 'ID do atleta']);
@@ -152,7 +152,7 @@
         headers: data.headers,
         rows: data.rows,
         currentIndex: index,
-        dataSource: 'sheets',
+        dataSource: 'firestore',
         serverStatuses: data.statuses || {},
         categoryFilter: '',
         availableCategories: [...new Set(data.athletes.map(a => a.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })),
